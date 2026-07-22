@@ -1,20 +1,33 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
-import { updateProfile, getUserHackathons, Hackathon } from '@/lib/supabase';
+import { supabase, updateProfile, getUserHackathons, fetchHackathons, Hackathon } from '@/lib/supabase';
 import {
+  LayoutDashboard,
   User as UserIcon,
-  FileCode2,
+  Bookmark,
+  FileText,
+  Users,
+  Trophy,
+  Bell,
+  Settings,
+  LogOut,
+  Send,
+  ArrowRight,
+  Camera,
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  X,
   Building2,
   Phone,
   Globe,
-  CheckCircle2,
   Sparkles,
   PlusCircle,
   Calendar,
@@ -23,14 +36,20 @@ import {
   Loader2,
   Save,
   MessageSquare,
-  Trophy,
+  ShieldCheck,
+  Trash2,
+  Lock,
   Award,
   Compass,
   Rocket,
-  ShieldCheck,
-  Zap
+  Zap,
+  ChevronRight,
+  Sliders,
+  Eye,
+  Mail
 } from 'lucide-react';
 
+// Social SVG Icons
 function TwitterIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -55,7 +74,49 @@ function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-// SVG Circle Completion Ring Component
+// Hexagon SVG Badge Icon Component
+function HexagonBadge({ className = "w-16 h-16", color = "violet" }: { className?: string; color?: string }) {
+  const gradientId = `hex-grad-${color}`;
+  return (
+    <svg className={className} viewBox="0 0 100 100" fill="none">
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={color === "cyan" ? "#4CC9F0" : color === "emerald" ? "#00FFA3" : color === "amber" ? "#F59E0B" : "#8B5CF6"} />
+          <stop offset="100%" stopColor={color === "cyan" ? "#00E5FF" : color === "emerald" ? "#10B981" : color === "amber" ? "#D97706" : "#4F46E5"} />
+        </linearGradient>
+      </defs>
+      <polygon points="50 5, 90 25, 90 75, 50 95, 10 75, 10 25" fill={`url(#${gradientId})`} opacity="0.2" stroke={`url(#${gradientId})`} strokeWidth="4" />
+      <polygon points="50 15, 80 30, 80 70, 50 85, 20 70, 20 30" fill={`url(#${gradientId})`} opacity="0.4" />
+    </svg>
+  );
+}
+
+// Animated Stat Counter Component
+function AnimatedNumber({ value }: { value: number }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTime: number | null = null;
+    const duration = 1500;
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(easeOut * value));
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }, [value]);
+
+  return <span className="font-mono-num">{count}</span>;
+}
+
+// SVG Circle Completion Ring
 function CompletionRing({ percentage }: { percentage: number }) {
   const radius = 36;
   const circumference = 2 * Math.PI * radius;
@@ -93,22 +154,28 @@ function CompletionRing({ percentage }: { percentage: number }) {
   );
 }
 
+// MOCK NOTIFICATIONS
+const INITIAL_NOTIFICATIONS = [
+  { id: '1', title: '🎉 Hackathon Approved', desc: 'Your submission "AI Innovators 2026" was verified and published.', time: '2 hours ago', icon: Sparkles, color: 'text-emerald-400', unread: true },
+  { id: '2', title: '⏰ Deadline Alert', desc: 'Registration for "Web3 Summit" closes in 2 days.', time: '5 hours ago', icon: Bell, color: 'text-amber-400', unread: true },
+  { id: '3', title: '🆕 New Hackathon in San Francisco', desc: 'GenAI & Agentic Systems Hackathon has opened registrations.', time: '1 day ago', icon: Globe, color: 'text-cyan-400', unread: false },
+  { id: '4', title: '✅ Profile Completed', desc: 'You updated your social profiles and background bio.', time: '2 days ago', icon: CheckCircle2, color: 'text-purple-400', unread: false },
+  { id: '5', title: '🏆 Achievement Unlocked', desc: 'You earned the "Early Bird" pioneer developer badge.', time: '3 days ago', icon: Trophy, color: 'text-amber-400', unread: false }
+];
+
 function AccountDashboard() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, signOut, refreshProfile } = useAuth();
   const { openAuthModal } = useAuthModal();
 
-  const initialTab = searchParams.get('tab') === 'submissions' ? 'submissions' : 'profile';
-  const [activeTab, setActiveTab] = useState<'profile' | 'submissions'>(initialTab);
+  const tabParam = searchParams.get('tab') || 'dashboard';
+  const [activeTab, setActiveTab] = useState<string>(tabParam);
 
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'submissions') {
-      setActiveTab('submissions');
-    } else {
-      setActiveTab('profile');
-    }
+    const t = searchParams.get('tab');
+    if (t) setActiveTab(t);
+    else setActiveTab('dashboard');
   }, [searchParams]);
 
   // Profile Form State
@@ -124,12 +191,29 @@ function AccountDashboard() {
     social_discord: ''
   });
 
-  const [saving, setSaving] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Submissions State
+  // Supabase fetched data
   const [userHackathons, setUserHackathons] = useState<Hackathon[]>([]);
-  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [savedHackathons, setSavedHackathons] = useState<Hackathon[]>([]);
+  const [allHackathons, setAllHackathons] = useState<Hackathon[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Settings & Delete modal
+  const [notificationsList, setNotificationsList] = useState(INITIAL_NOTIFICATIONS);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+
+  // Settings Toggles State
+  const [settingsToggles, setSettingsToggles] = useState({
+    emailNotifs: true,
+    deadlineReminders: true,
+    cityHackathons: true,
+    weeklyDigest: false,
+    publicProfile: true,
+    publicSubmissions: true
+  });
 
   // Sync profile data when loaded
   useEffect(() => {
@@ -148,25 +232,34 @@ function AccountDashboard() {
     }
   }, [profile]);
 
-  // Load user submissions
+  // Load User Data from Supabase
   useEffect(() => {
-    if (user?.id) {
-      setSubmissionsLoading(true);
-      getUserHackathons(user.id)
-        .then(data => setUserHackathons(data))
-        .finally(() => setSubmissionsLoading(false));
+    async function loadDashboardData() {
+      setLoadingData(true);
+      const all = await fetchHackathons();
+      setAllHackathons(all);
+
+      if (user?.id) {
+        const userSubs = await getUserHackathons(user.id);
+        setUserHackathons(userSubs);
+
+        // Fetch saved hackathons
+        try {
+          const storedIds = localStorage.getItem('findathon_saved_ids');
+          const savedIdsArray: string[] = storedIds ? JSON.parse(storedIds) : [];
+          const savedItems = all.filter(h => savedIdsArray.includes(h.id));
+          setSavedHackathons(savedItems);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setLoadingData(false);
     }
+
+    loadDashboardData();
   }, [user?.id]);
 
-  // Toast Auto-Dismiss
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
-  // Profile completeness calculation
+  // Profile Completeness Calculation
   const completeness = useMemo(() => {
     const fields = [
       formData.full_name,
@@ -183,6 +276,14 @@ function AccountDashboard() {
     return Math.round((filled / fields.length) * 100);
   }, [formData]);
 
+  // Toast Auto-Dismiss
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -192,9 +293,9 @@ function AccountDashboard() {
     e.preventDefault();
     if (!user?.id) return;
 
-    setSaving(true);
+    setSavingProfile(true);
     const res = await updateProfile(user.id, formData);
-    setSaving(false);
+    setSavingProfile(false);
 
     if (res.success) {
       await refreshProfile();
@@ -204,9 +305,32 @@ function AccountDashboard() {
     }
   };
 
+  const handleUnsave = (hackathonId: string) => {
+    setSavedHackathons(prev => prev.filter(item => item.id !== hackathonId));
+    try {
+      const stored = localStorage.getItem('findathon_saved_ids');
+      const ids: string[] = stored ? JSON.parse(stored) : [];
+      const updated = ids.filter(id => id !== hackathonId);
+      localStorage.setItem('findathon_saved_ids', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const unreadCount = notificationsList.filter(n => n.unread).length;
+
+  const markAllNotificationsRead = () => {
+    setNotificationsList(prev => prev.map(n => ({ ...n, unread: false })));
+  };
+
+  const switchTab = (tabKey: string) => {
+    setActiveTab(tabKey);
+    router.push(`/account?tab=${tabKey}`);
+  };
+
   if (authLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center py-20">
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#060816] text-[#F6F8FC]">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
           <p className="text-sm font-semibold text-purple-300">Loading your account dashboard...</p>
@@ -215,481 +339,870 @@ function AccountDashboard() {
     );
   }
 
-  // Protected route guard
   if (!user) {
     return (
-      <div className="flex-1 max-w-xl w-full mx-auto px-4 py-20 text-center space-y-6">
-        <div className="w-16 h-16 mx-auto rounded-3xl glass-card border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-xl">
-          <UserIcon className="w-8 h-8" />
-        </div>
-        <h2 className="text-2xl font-black text-white glow-text">Sign In Required</h2>
-        <p className="text-sm text-slate-300 leading-relaxed">
-          Please sign in to access your profile settings, view submitted hackathons, and manage your account.
-        </p>
-        <button
-          onClick={openAuthModal}
-          className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-xl transition-all"
-        >
-          <span>Sign In with Google</span>
-        </button>
+      <div className="min-h-screen bg-[#060816] text-[#F6F8FC] flex flex-col justify-between">
+        <Navbar />
+        <main className="flex-1 max-w-xl w-full mx-auto px-4 py-24 text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-3xl glass-card border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-xl">
+            <UserIcon className="w-8 h-8" />
+          </div>
+          <h2 className="text-3xl font-black text-white glow-text">Sign In Required</h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            Please sign in to access your dashboard, saved hackathons, submissions, and account settings.
+          </p>
+          <button
+            onClick={openAuthModal}
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-xl transition-all"
+          >
+            <span>Sign In with Google</span>
+          </button>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture;
+  const userName = formData.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Builder';
+
+  // Navigation Items Config
+  const NAV_ITEMS = [
+    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { key: 'profile', label: 'Profile', icon: UserIcon },
+    { key: 'saved', label: 'Saved Hackathons', icon: Bookmark },
+    { key: 'submissions', label: 'My Submissions', icon: FileText },
+    { key: 'teams', label: 'My Teams', icon: Users },
+    { key: 'achievements', label: 'Achievements', icon: Trophy },
+    { key: 'notifications', label: 'Notifications', icon: Bell, badge: unreadCount },
+    { key: 'settings', label: 'Settings', icon: Settings }
+  ];
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
+    <div className="min-h-screen bg-[#060816] text-[#F6F8FC] flex relative">
       
-      {/* FLOATING DASHBOARD GRID HEADER */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* 1. FIXED LEFT SIDEBAR (Desktop) */}
+      <aside className="fixed top-0 left-0 h-full w-64 z-30 bg-[#0D1224]/80 backdrop-blur-xl border-r border-purple-900/20 flex-col justify-between hidden md:flex">
         
-        {/* Profile Card (2 cols) */}
-        <div className="md:col-span-2 glass-card rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
-          
-          <div className="flex items-center gap-5 z-10">
-            {/* Avatar */}
+        {/* TOP BRAND SECTION */}
+        <div className="p-6 border-b border-purple-900/20">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <span className="text-purple-400 text-lg group-hover:rotate-12 transition-transform">✦</span>
+            <span className="text-lg font-black tracking-tight text-white flex items-center gap-1">
+              Find<span className="text-gradient">athon</span>
+            </span>
+          </Link>
+        </div>
+
+        {/* NAVIGATION LINKS LIST */}
+        <div className="px-3 py-4 flex-1 space-y-1 overflow-y-auto">
+          {NAV_ITEMS.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeTab === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => switchTab(item.key)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-semibold transition-all ${
+                  isActive
+                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 shadow-md'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <IconComponent className={`w-4 h-4 ${isActive ? 'text-purple-400' : 'text-slate-400'}`} />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && item.badge > 0 ? (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* BOTTOM USER PROFILE & LOGOUT */}
+        <div className="p-4 border-t border-purple-900/20 space-y-3">
+          <div className="flex items-center gap-3">
             {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt="Profile avatar"
-                className="w-20 h-20 rounded-2xl object-cover ring-2 ring-purple-500/50 shadow-lg"
-              />
+              <img src={avatarUrl} alt={userName} className="w-8 h-8 rounded-full object-cover ring-1 ring-purple-500/40" />
             ) : (
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg">
-                {formData.full_name ? formData.full_name.slice(0, 2).toUpperCase() : 'U'}
+              <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                {userName.slice(0, 2).toUpperCase()}
               </div>
             )}
-
-            <div className="space-y-1 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight glow-text">
-                {formData.full_name || user.email?.split('@')[0]}
-              </h1>
-              <p className="text-xs text-purple-300 font-medium">{user.email}</p>
-              {formData.organization && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/40">
-                  <Building2 className="w-3.5 h-3.5 text-purple-400" />
-                  {formData.organization}
-                </span>
-              )}
+            <div className="overflow-hidden text-left">
+              <p className="text-xs font-bold text-white truncate">{userName}</p>
+              <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
             </div>
           </div>
 
-          {/* SVG Completion Ring */}
-          <div className="z-10 shrink-0">
-            <CompletionRing percentage={completeness} />
-          </div>
-
+          <button
+            onClick={() => signOut().then(() => router.push('/'))}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-950/40 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
         </div>
 
-        {/* Quick Stats Panel (1 col) */}
-        <div className="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4 border border-purple-500/20">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Account Metrics</span>
-            <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-          </div>
+      </aside>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 rounded-2xl bg-[#0D1224] border border-purple-900/30">
-              <span className="text-xs text-slate-400 block">Submissions</span>
-              <span className="text-2xl font-black text-white font-mono-num">{userHackathons.length}</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-[#0D1224] border border-purple-900/30">
-              <span className="text-xs text-slate-400 block">Status</span>
-              <span className="text-2xl font-black text-emerald-400 font-mono-num">Active</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ACHIEVEMENT BADGES SECTION */}
-      <div className="glass-card rounded-3xl p-6 sm:p-8 space-y-4 border border-purple-500/20">
-        <div className="flex items-center justify-between border-b border-purple-900/30 pb-3">
-          <div>
-            <h3 className="text-lg font-black text-white glow-text flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-400" />
-              Achievement Badges
-            </h3>
-            <p className="text-xs text-slate-400">Badges earned through platform activity and event submissions.</p>
-          </div>
-          <span className="text-xs font-bold text-purple-400 font-mono-num">
-            {userHackathons.length > 0 ? '4 / 4 Unlocked' : '3 / 4 Unlocked'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          
-          {/* Badge 1: Early Bird */}
-          <div className="p-4 rounded-2xl bg-[#0D1224] aurora-border space-y-2 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-purple-400">
-                <Award className="w-5 h-5" />
-              </div>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
-                Unlocked
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Early Bird</h4>
-              <p className="text-[11px] text-slate-400">Pioneer member of Findathon</p>
-            </div>
-          </div>
-
-          {/* Badge 2: Explorer */}
-          <div className="p-4 rounded-2xl bg-[#0D1224] aurora-border space-y-2 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
-                <Compass className="w-5 h-5" />
-              </div>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
-                Unlocked
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Explorer</h4>
-              <p className="text-[11px] text-slate-400">Discovered global hackathons</p>
-            </div>
-          </div>
-
-          {/* Badge 3: Participant */}
-          <div className="p-4 rounded-2xl bg-[#0D1224] aurora-border space-y-2 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-indigo-950/80 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
-                <Zap className="w-5 h-5" />
-              </div>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
-                Unlocked
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Participant</h4>
-              <p className="text-[11px] text-slate-400">Active builder & hacker</p>
-            </div>
-          </div>
-
-          {/* Badge 4: Top Organizer */}
-          <div className={`p-4 rounded-2xl bg-[#0D1224] space-y-2 relative overflow-hidden border ${
-            userHackathons.length > 0 ? 'aurora-border' : 'border-purple-900/30 opacity-70'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-amber-950/80 border border-amber-500/40 flex items-center justify-center text-amber-400">
-                <Rocket className="w-5 h-5" />
-              </div>
-              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                userHackathons.length > 0
-                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500/30'
-                  : 'bg-slate-900 text-slate-400 border-slate-700'
-              }`}>
-                {userHackathons.length > 0 ? 'Unlocked' : 'Locked'}
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Top Organizer</h4>
-              <p className="text-[11px] text-slate-400">Published a hackathon event</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* DASHBOARD TAB CONTROLS */}
-      <div className="flex items-center gap-3 border-b border-purple-900/30 pb-4">
-        <button
-          onClick={() => {
-            setActiveTab('profile');
-            router.push('/account');
-          }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            activeTab === 'profile'
-              ? 'aurora-border text-white shadow-lg'
-              : 'glass-card text-slate-400 hover:text-white border-purple-900/30'
-          }`}
-        >
-          <UserIcon className="w-4 h-4" />
-          <span>My Profile</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab('submissions');
-            router.push('/account?tab=submissions');
-          }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            activeTab === 'submissions'
-              ? 'aurora-border text-white shadow-lg'
-              : 'glass-card text-slate-400 hover:text-white border-purple-900/30'
-          }`}
-        >
-          <FileCode2 className="w-4 h-4" />
-          <span>My Submissions ({userHackathons.length})</span>
-        </button>
-      </div>
-
-      {/* TAB 1: MY PROFILE FORM */}
-      {activeTab === 'profile' && (
-        <form onSubmit={handleProfileSave} className="glass-card rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-purple-500/20">
-          
-          <div className="border-b border-purple-900/30 pb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-white glow-text">Personal & Account Information</h3>
-              <p className="text-xs text-slate-400">Manage your profile details and contact links.</p>
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="aurora-border px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 inline-flex items-center gap-2"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>Save Profile</span>
-            </button>
-          </div>
-
-          {/* Form Fields Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {/* 2. MAIN CONTENT AREA */}
+      <main className="flex-1 md:ml-64 p-4 sm:p-8 min-h-screen overflow-y-auto pb-24 md:pb-8">
+        
+        {/* ========================================================= */}
+        {/* TAB 1: DASHBOARD (DEFAULT) */}
+        {/* ========================================================= */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8 animate-fade-in-up">
             
-            {/* Full Name */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
-                Full Name
-              </label>
-              <input
-                type="text"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleProfileChange}
-                placeholder="Your full name"
-                className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-              />
-            </div>
-
-            {/* Organization */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
-                Organization / College Name
-              </label>
-              <input
-                type="text"
-                name="organization"
-                value={formData.organization}
-                onChange={handleProfileChange}
-                placeholder="e.g. Stanford University or Acme Inc"
-                className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-              />
-            </div>
-
-            {/* Bio */}
-            <div className="sm:col-span-2 space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-semibold text-slate-300">Bio</label>
-                <span className="text-slate-500 font-mono-num">{formData.bio.length}/200</span>
+            {/* TOP ROW — Welcome + Level Card */}
+            <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+              
+              <div className="flex-1 space-y-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                  Welcome back, <span className="glow-text">{userName}</span>! 👋
+                </h1>
+                <p className="text-sm sm:text-base text-slate-400">
+                  Ready to build something amazing today? Track deadlines, save hackathons, and manage your events.
+                </p>
               </div>
-              <textarea
-                name="bio"
-                maxLength={200}
-                rows={3}
-                value={formData.bio}
-                onChange={handleProfileChange}
-                placeholder="Tell us briefly about your background and interests..."
-                className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-              />
-            </div>
 
-            {/* Phone */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
-                Phone / WhatsApp Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-3.5 w-4 h-4 text-purple-400" />
-                <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleProfileChange}
-                  placeholder="+91 98765 43210"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-                />
-              </div>
-            </div>
-
-            {/* Website */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-300">
-                Website URL
-              </label>
-              <div className="relative">
-                <Globe className="absolute left-3.5 top-3.5 w-4 h-4 text-purple-400" />
-                <input
-                  type="url"
-                  name="website"
-                  value={formData.website}
-                  onChange={handleProfileChange}
-                  placeholder="https://yourportfolio.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-                />
-              </div>
-            </div>
-
-          </div>
-
-          {/* Social Handles */}
-          <div className="pt-4 border-t border-purple-900/30 space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400">Social Profiles</h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="relative flex items-center">
-                <div className="absolute left-3.5 text-purple-400">
-                  <TwitterIcon />
+              {/* Level 12 Builder Card */}
+              <div className="glass-card w-full lg:w-80 p-5 rounded-2xl border border-purple-500/20 shadow-2xl relative overflow-hidden flex flex-col justify-between shrink-0">
+                <div className="flex items-center justify-between z-10">
+                  <div>
+                    <h3 className="text-2xl font-black text-white font-mono-num">Level 12</h3>
+                    <span className="text-xs font-bold text-purple-400">Builder Tier</span>
+                  </div>
+                  <HexagonBadge className="w-14 h-14" color="violet" />
                 </div>
-                <input
-                  type="text"
-                  name="social_twitter"
-                  value={formData.social_twitter}
-                  onChange={handleProfileChange}
-                  placeholder="Twitter/X handle"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-                />
-              </div>
 
-              <div className="relative flex items-center">
-                <div className="absolute left-3.5 text-purple-400">
-                  <LinkedinIcon />
+                <div className="space-y-1.5 pt-4 z-10">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-slate-400">XP Progress</span>
+                    <span className="text-purple-300 font-mono-num">2,410 / 5,000 XP</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-purple-900/40">
+                    <div className="h-full bg-gradient-to-r from-purple-600 via-indigo-500 to-cyan-400 w-[48%] rounded-full transition-all duration-1000" />
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  name="social_linkedin"
-                  value={formData.social_linkedin}
-                  onChange={handleProfileChange}
-                  placeholder="LinkedIn URL"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-                />
               </div>
 
-              <div className="relative flex items-center">
-                <div className="absolute left-3.5 text-purple-400">
-                  <InstagramIcon />
+            </div>
+
+            {/* STATS ROW (4 Cards with Count-Up Animation) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* Card 1: Saved Hackathons */}
+              <div className="glass-card glass-card-hover p-5 rounded-2xl flex items-center gap-4 border border-purple-500/20">
+                <div className="w-12 h-12 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                  <Bookmark className="w-6 h-6" />
                 </div>
-                <input
-                  type="text"
-                  name="social_instagram"
-                  value={formData.social_instagram}
-                  onChange={handleProfileChange}
-                  placeholder="Instagram handle"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-                />
+                <div>
+                  <div className="text-3xl font-black text-purple-300 font-mono-num">
+                    <AnimatedNumber value={savedHackathons.length} />
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Saved Hackathons</span>
+                </div>
               </div>
 
-              <div className="relative flex items-center">
-                <MessageSquare className="absolute left-3.5 top-3.5 w-4 h-4 text-purple-400" />
-                <input
-                  type="text"
-                  name="social_discord"
-                  value={formData.social_discord}
-                  onChange={handleProfileChange}
-                  placeholder="Discord username or invite link"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
-                />
+              {/* Card 2: My Submissions */}
+              <div className="glass-card glass-card-hover p-5 rounded-2xl flex items-center gap-4 border border-purple-500/20">
+                <div className="w-12 h-12 rounded-xl bg-cyan-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Send className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-3xl font-black text-cyan-300 font-mono-num">
+                    <AnimatedNumber value={userHackathons.length} />
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">My Submissions</span>
+                </div>
               </div>
+
+              {/* Card 3: My Teams */}
+              <div className="glass-card glass-card-hover p-5 rounded-2xl flex items-center gap-4 border border-purple-500/20">
+                <div className="w-12 h-12 rounded-xl bg-rose-600/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-3xl font-black text-rose-300 font-mono-num">
+                    <AnimatedNumber value={2} />
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">My Teams</span>
+                </div>
+              </div>
+
+              {/* Card 4: Achievements */}
+              <div className="glass-card glass-card-hover p-5 rounded-2xl flex items-center gap-4 border border-purple-500/20">
+                <div className="w-12 h-12 rounded-xl bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                  <Trophy className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-3xl font-black text-amber-300 font-mono-num">
+                    <AnimatedNumber value={5} />
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Achievements</span>
+                </div>
+              </div>
+
             </div>
-          </div>
 
-        </form>
-      )}
+            {/* BOTTOM ROW (2 Columns) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* Left Column: Upcoming Deadlines */}
+              <div className="glass-card rounded-2xl p-6 border border-purple-500/20 space-y-4 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-4">Upcoming Deadlines</h3>
 
-      {/* TAB 2: MY SUBMISSIONS PANEL */}
-      {activeTab === 'submissions' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-black text-white glow-text">Your Submitted Hackathons</h3>
-              <p className="text-xs text-slate-400">Track verification & approval statuses of hackathons you published.</p>
-            </div>
+                  {savedHackathons.length > 0 ? (
+                    <div className="space-y-3">
+                      {savedHackathons.slice(0, 3).map((item) => {
+                        const deadline = new Date(item.registration_deadline || item.start_date);
+                        const daysLeft = Math.ceil((deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        let colorClass = 'text-cyan-400';
+                        if (daysLeft <= 5) colorClass = 'text-rose-400';
+                        else if (daysLeft <= 14) colorClass = 'text-amber-400';
 
-            <Link
-              href="/submit"
-              className="aurora-border px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md inline-flex items-center gap-2 hover:scale-105 transition-all"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Submit New</span>
-            </Link>
-          </div>
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-4 py-3 border-b border-purple-900/20 last:border-none"
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                {item.title[0]}
+                              </div>
+                              <div className="overflow-hidden">
+                                <h4 className="text-xs sm:text-sm font-bold text-white truncate">{item.title}</h4>
+                                <p className={`text-xs font-semibold ${colorClass}`}>
+                                  {daysLeft <= 0 ? 'Deadline Today' : `Submission in ${daysLeft} days`}
+                                </p>
+                              </div>
+                            </div>
 
-          {submissionsLoading ? (
-            <div className="p-12 text-center text-slate-400">
-              <Loader2 className="w-8 h-8 mx-auto animate-spin text-purple-500 mb-2" />
-              <p className="text-xs">Fetching your submissions...</p>
-            </div>
-          ) : userHackathons.length > 0 ? (
-            <div className="space-y-4">
-              {userHackathons.map((h) => {
-                const status = h.status || 'pending';
-                let statusBadgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-                if (status === 'approved') statusBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-                if (status === 'rejected') statusBadgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+                            <Link
+                              href={`/hackathons/${item.id}`}
+                              className="p-2 rounded-full bg-slate-900 hover:bg-purple-600 text-slate-300 hover:text-white transition-colors shrink-0"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center space-y-3 text-slate-400">
+                      <Globe className="w-10 h-10 mx-auto text-purple-400 animate-float" />
+                      <p className="text-xs font-semibold text-slate-300">No upcoming deadlines tracked</p>
+                      <p className="text-[11px] text-slate-400">Save hackathons to track deadlines and receive reminders.</p>
+                    </div>
+                  )}
+                </div>
 
-                return (
-                  <div
-                    key={h.id}
-                    className="p-5 rounded-2xl glass-card border border-purple-900/30 hover:border-purple-500/40 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl bg-[#060816] overflow-hidden shrink-0 border border-purple-900/30">
-                        <img
-                          src={h.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=300&auto=format&fit=crop'}
-                          alt={h.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-white text-base">{h.title}</h4>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                          <span className="flex items-center gap-1 font-mono-num">
-                            <Calendar className="w-3.5 h-3.5 text-purple-400" />
-                            {h.start_date} to {h.end_date}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-purple-400" />
-                            {h.is_online ? 'Online' : h.location_city || 'In-Person'}
-                          </span>
+                <button
+                  onClick={() => switchTab('saved')}
+                  className="w-full py-3 rounded-xl text-xs font-bold bg-purple-900/40 hover:bg-purple-800/40 border border-purple-700/40 text-purple-300 transition-all text-center"
+                >
+                  View all saved deadlines →
+                </button>
+              </div>
+
+              {/* Right Column: Recommended For You */}
+              <div className="glass-card rounded-2xl p-6 border border-purple-500/20 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-white">Recommended for you</h3>
+                  <Link href="/#discover" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+                    View all →
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {allHackathons.slice(0, 3).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-4 py-3 border-b border-purple-900/20 last:border-none">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-10 h-10 rounded-xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                          {item.tags?.includes('AI') ? '🤖' : item.tags?.includes('Web3') ? '⛓' : '☁'}
                         </div>
+                        <div className="overflow-hidden">
+                          <Link href={`/hackathons/${item.id}`}>
+                            <h4 className="text-xs sm:text-sm font-bold text-white truncate hover:text-purple-300">
+                              {item.title}
+                            </h4>
+                          </Link>
+                          <p className="text-[11px] text-slate-400 font-mono-num">
+                            {item.start_date} — {item.end_date}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold glass-card border border-purple-800/40 text-purple-300 shrink-0">
+                        #{item.tags?.[0] || 'Tech'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 2: PROFILE */}
+        {/* ========================================================= */}
+        {activeTab === 'profile' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in-up">
+            
+            {/* LEFT PROFILE CARD */}
+            <div className="glass-card rounded-3xl p-6 sm:p-8 text-center space-y-6 border border-purple-500/20 flex flex-col items-center">
+              
+              <div className="relative">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={userName} className="w-24 h-24 rounded-full object-cover ring-4 ring-purple-500/40 shadow-xl" />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-black text-3xl flex items-center justify-center ring-4 ring-purple-500/40 shadow-xl">
+                    {userName.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <label className="absolute bottom-0 right-0 p-2 rounded-full bg-purple-600 text-white shadow-lg cursor-pointer hover:bg-purple-500 transition-colors">
+                  <Camera className="w-4 h-4" />
+                  <input type="file" className="hidden" accept="image/*" />
+                </label>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-bold text-white">{userName}</h3>
+                <p className="text-xs text-purple-300">{user.email}</p>
+                {formData.bio && <p className="text-xs text-slate-300 italic pt-2">&quot;{formData.bio}&quot;</p>}
+              </div>
+
+              {/* Completion Ring */}
+              <div className="pt-2 flex flex-col items-center space-y-2">
+                <CompletionRing percentage={completeness} />
+                <span className="text-xs font-bold text-slate-300">Profile {completeness}% Complete</span>
+              </div>
+
+              <div className="text-[11px] text-slate-400 pt-4 border-t border-purple-900/30 w-full text-center font-mono-num">
+                Member since July 2026
+              </div>
+
+            </div>
+
+            {/* RIGHT EDIT FORM */}
+            <form onSubmit={handleProfileSave} className="lg:col-span-2 glass-card rounded-3xl p-6 sm:p-8 space-y-6 border border-purple-500/20 shadow-2xl">
+              
+              <div className="border-b border-purple-900/30 pb-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white glow-text">Edit Profile Details</h3>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="aurora-border px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>{savingProfile ? 'Saving...' : 'Save Profile'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">Full Name</label>
+                  <input
+                    type="text"
+                    name="full_name"
+                    value={formData.full_name}
+                    onChange={handleProfileChange}
+                    placeholder="Your full name"
+                    className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">Organization / College</label>
+                  <input
+                    type="text"
+                    name="organization"
+                    value={formData.organization}
+                    onChange={handleProfileChange}
+                    placeholder="e.g. Stanford University"
+                    className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-semibold text-slate-300">Bio</label>
+                    <span className="text-slate-500 font-mono-num">{formData.bio.length}/200</span>
+                  </div>
+                  <textarea
+                    name="bio"
+                    rows={3}
+                    maxLength={200}
+                    value={formData.bio}
+                    onChange={handleProfileChange}
+                    placeholder="Short summary about your coding skills and interests..."
+                    className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">Phone / WhatsApp</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleProfileChange}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">Website URL</label>
+                  <input
+                    type="url"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleProfileChange}
+                    placeholder="https://yourportfolio.com"
+                    className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* SOCIAL LINKS SECTION */}
+              <div className="pt-4 border-t border-purple-900/30 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400">Social Profiles</h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 text-purple-400"><TwitterIcon /></div>
+                    <input
+                      type="text"
+                      name="social_twitter"
+                      value={formData.social_twitter}
+                      onChange={handleProfileChange}
+                      placeholder="@twitter_handle"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 text-purple-400"><LinkedinIcon /></div>
+                    <input
+                      type="text"
+                      name="social_linkedin"
+                      value={formData.social_linkedin}
+                      onChange={handleProfileChange}
+                      placeholder="linkedin.com/in/..."
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 text-purple-400"><InstagramIcon /></div>
+                    <input
+                      type="text"
+                      name="social_instagram"
+                      value={formData.social_instagram}
+                      onChange={handleProfileChange}
+                      placeholder="@instagram_handle"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="relative flex items-center">
+                    <MessageSquare className="absolute left-3.5 top-3.5 w-4 h-4 text-purple-400" />
+                    <input
+                      type="text"
+                      name="social_discord"
+                      value={formData.social_discord}
+                      onChange={handleProfileChange}
+                      placeholder="username#0000"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-white text-sm focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </form>
+
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 3: SAVED HACKATHONS */}
+        {/* ========================================================= */}
+        {activeTab === 'saved' && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-white glow-text">Saved Hackathons</h3>
+                <p className="text-xs text-slate-400">Bookmarked events you are tracking.</p>
+              </div>
+              <Link href="/#discover" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+                Explore More →
+              </Link>
+            </div>
+
+            {savedHackathons.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {savedHackathons.map((h) => (
+                  <div key={h.id} className="glass-card p-5 rounded-2xl border border-purple-500/20 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <Link href={`/hackathons/${h.id}`}>
+                          <h4 className="font-bold text-white text-base hover:text-purple-300 transition-colors">{h.title}</h4>
+                        </Link>
+                        <button
+                          onClick={() => handleUnsave(h.id)}
+                          className="text-slate-400 hover:text-rose-400 p-1"
+                          title="Remove bookmark"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-purple-400 font-medium pt-1">{h.organizer || 'Host'}</p>
+                    </div>
+
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="font-mono-num">{h.start_date} to {h.end_date}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                        <span>{h.is_online ? 'Worldwide Online' : h.location_city || 'Campus'}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 self-end sm:self-auto">
-                      <span className={`px-3 py-1 rounded-full text-xs uppercase font-bold tracking-wider border ${statusBadgeClass}`}>
-                        {status}
-                      </span>
+                    <div className="flex items-center justify-between pt-2 border-t border-purple-900/20">
+                      <div className="flex gap-1.5">
+                        {h.tags?.slice(0, 2).map((t, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded text-[10px] bg-purple-950 text-purple-300 border border-purple-800/40">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
 
-                      <Link
-                        href={`/hackathons/${h.id}`}
-                        className="p-2 rounded-xl bg-[#060816] text-slate-300 hover:text-purple-300 border border-purple-900/30"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 animate-pulse">
+                        ⚡ Closing Soon
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-16 rounded-3xl glass-card text-center space-y-4 border border-purple-500/20">
+                <div className="w-16 h-16 mx-auto rounded-full bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <Bookmark className="w-8 h-8" />
+                </div>
+                <h4 className="text-lg font-bold text-white">No saved hackathons yet</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">Explore hackathons on the home page and bookmark your favorites to track deadlines.</p>
+                <Link
+                  href="/"
+                  className="aurora-border px-6 py-2.5 rounded-xl text-xs font-bold text-white inline-flex items-center gap-2"
+                >
+                  <span>Explore Hackathons</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 4: MY SUBMISSIONS */}
+        {/* ========================================================= */}
+        {activeTab === 'submissions' && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-white glow-text">My Submissions</h3>
+                <p className="text-xs text-slate-400">Published hackathons and verification statuses.</p>
+              </div>
+              <Link
+                href="/submit"
+                className="aurora-border px-4 py-2 rounded-xl text-xs font-bold text-white inline-flex items-center gap-2"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Submit New Event</span>
+              </Link>
+            </div>
+
+            {userHackathons.length > 0 ? (
+              <div className="glass-card rounded-2xl overflow-hidden border border-purple-500/20">
+                <div className="bg-purple-950/40 px-6 py-4 grid grid-cols-4 text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-purple-900/30">
+                  <span className="col-span-2">Event</span>
+                  <span>Status</span>
+                  <span className="text-right">Actions</span>
+                </div>
+
+                {userHackathons.map((h) => {
+                  const status = h.status || 'pending';
+                  let statusBadgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+                  let statusText = '⏳ Under Review';
+                  if (status === 'approved') {
+                    statusBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+                    statusText = '✅ Approved';
+                  } else if (status === 'rejected') {
+                    statusBadgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+                    statusText = '❌ Rejected';
+                  }
+
+                  return (
+                    <div key={h.id} className="px-6 py-4 grid grid-cols-4 items-center text-xs border-b border-purple-900/10 hover:bg-white/5 transition-colors">
+                      <div className="col-span-2 space-y-0.5">
+                        <h4 className="font-bold text-white text-sm">{h.title}</h4>
+                        <p className="text-[11px] text-slate-400">{h.organizer || 'Host'}</p>
+                      </div>
+
+                      <div>
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-bold border ${statusBadgeClass}`}>
+                          {statusText}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <Link
+                          href={`/hackathons/${h.id}`}
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-purple-600 text-slate-300 hover:text-white border border-purple-900/40 transition-colors"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-16 rounded-3xl glass-card text-center space-y-4 border border-purple-500/20">
+                <Rocket className="w-12 h-12 mx-auto text-purple-400 animate-float" />
+                <h4 className="text-lg font-bold text-white">No submissions yet</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">Be the first to list your college tech fest or virtual hackathon on Findathon.</p>
+                <Link href="/submit" className="aurora-border px-6 py-2.5 rounded-xl text-xs font-bold text-white inline-flex items-center gap-2">
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Submit a Hackathon</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 5: ACHIEVEMENTS */}
+        {/* ========================================================= */}
+        {activeTab === 'achievements' && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="border-b border-purple-900/30 pb-3">
+              <h3 className="text-xl font-black text-white glow-text flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-amber-400" />
+                Achievements & Badges
+              </h3>
+              <p className="text-xs text-slate-400">Earn badges through active participation, event bookmarking, and submissions.</p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[
+                { name: 'Early Bird', desc: 'Save your first hackathon', earned: savedHackathons.length > 0, icon: Award, color: 'violet' },
+                { name: 'Explorer', desc: 'Save 10 hackathons', earned: savedHackathons.length >= 10, icon: Compass, color: 'cyan' },
+                { name: 'Pathfinder', desc: 'Save 25 hackathons', earned: savedHackathons.length >= 25, icon: MapPin, color: 'emerald' },
+                { name: 'Organizer', desc: 'Submit your first hackathon', earned: userHackathons.length > 0, icon: Rocket, color: 'amber' },
+                { name: 'Community Builder', desc: 'Get 5 hackathons approved', earned: false, icon: Users, color: 'rose' },
+                { name: 'Veteran', desc: 'Member for 6 months', earned: true, icon: ShieldCheck, color: 'purple' },
+                { name: 'Speedrunner', desc: 'Register within 24h of opening', earned: true, icon: Zap, color: 'blue' },
+                { name: 'Champion', desc: 'Profile 100% complete', earned: completeness === 100, icon: Trophy, color: 'gold' }
+              ].map((badge, idx) => (
+                <div
+                  key={idx}
+                  className={`glass-card p-5 rounded-2xl text-center space-y-3 border relative overflow-hidden transition-all ${
+                    badge.earned ? 'aurora-border' : 'border-purple-900/30 opacity-60 grayscale'
+                  }`}
+                >
+                  <HexagonBadge className="w-14 h-14 mx-auto" color={badge.color} />
+                  <div>
+                    <h4 className="font-bold text-white text-xs">{badge.name}</h4>
+                    <p className="text-[10px] text-slate-400 pt-0.5">{badge.desc}</p>
+                  </div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                    badge.earned ? 'bg-emerald-950 text-emerald-300 border-emerald-500/30' : 'bg-slate-900 text-slate-500 border-slate-700'
+                  }`}>
+                    {badge.earned ? 'Unlocked' : 'Locked'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 6: NOTIFICATIONS */}
+        {/* ========================================================= */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6 animate-fade-in-up">
+            <div className="flex items-center justify-between border-b border-purple-900/30 pb-3">
+              <div>
+                <h3 className="text-xl font-black text-white glow-text">Notifications</h3>
+                <p className="text-xs text-slate-400">Updates regarding your submissions, reminders, and platform activity.</p>
+              </div>
+              <button
+                onClick={markAllNotificationsRead}
+                className="text-xs font-bold text-purple-400 hover:text-purple-300"
+              >
+                Mark all as read
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {notificationsList.map((n) => {
+                const IconComp = n.icon;
+                return (
+                  <div key={n.id} className="glass-card p-4 rounded-2xl border border-purple-500/20 flex items-start gap-4">
+                    <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${n.unread ? 'bg-purple-500' : 'bg-slate-700'}`} />
+                    <div className="p-2 rounded-xl bg-[#0D1224] border border-purple-900/30 shrink-0">
+                      <IconComp className={`w-4 h-4 ${n.color}`} />
+                    </div>
+                    <div className="flex-1 space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-white">{n.title}</h4>
+                        <span className="text-[10px] text-slate-500 font-mono-num">{n.time}</span>
+                      </div>
+                      <p className="text-xs text-slate-300">{n.desc}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="p-12 rounded-3xl glass-card border border-purple-900/20 text-center space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-full bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                <FileCode2 className="w-7 h-7" />
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 7: SETTINGS */}
+        {/* ========================================================= */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6 animate-fade-in-up max-w-3xl">
+            
+            {/* ACCOUNT SETTINGS */}
+            <div className="glass-card rounded-2xl p-6 border border-purple-500/20 space-y-4">
+              <h3 className="text-base font-bold text-white">Account Settings</h3>
+              
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">Registered Google Email</label>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-[#0D1224] border border-purple-900/30">
+                  <Mail className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs text-white font-medium flex-1">{user.email}</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800/40">
+                    via Google OAuth
+                  </span>
+                </div>
               </div>
-              <h4 className="text-lg font-bold text-white">You haven&apos;t submitted any hackathons yet</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Submit your upcoming online or on-campus hackathon to reach thousands of student developers.
-              </p>
-              <Link
-                href="/submit"
-                className="aurora-border px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md inline-flex items-center gap-2 hover:scale-105 transition-all"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Submit a Hackathon Now</span>
-              </Link>
             </div>
-          )}
+
+            {/* NOTIFICATION PREFERENCES */}
+            <div className="glass-card rounded-2xl p-6 border border-purple-500/20 space-y-4">
+              <h3 className="text-base font-bold text-white">Notification Preferences</h3>
+
+              {[
+                { key: 'emailNotifs', label: 'Email Notifications', desc: 'Receive important updates regarding submissions' },
+                { key: 'deadlineReminders', label: 'Deadline Reminders', desc: 'Get alerts when bookmarked hackathons are closing' },
+                { key: 'cityHackathons', label: 'Local City Hackathons', desc: 'Notifications for new on-campus events in your region' },
+                { key: 'weeklyDigest', label: 'Weekly Digest', desc: 'Curated list of top prize pool hackathons every Monday' }
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between py-2 border-b border-purple-900/20 last:border-none">
+                  <div>
+                    <h4 className="text-xs font-bold text-white">{item.label}</h4>
+                    <p className="text-[11px] text-slate-400">{item.desc}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsToggles(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof prev] }))}
+                    className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
+                      settingsToggles[item.key as keyof typeof settingsToggles] ? 'bg-purple-600' : 'bg-slate-800'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      settingsToggles[item.key as keyof typeof settingsToggles] ? 'translate-x-6' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* DANGER ZONE */}
+            <div className="glass-card rounded-2xl p-6 border border-rose-500/30 space-y-4 bg-rose-950/10">
+              <h3 className="text-base font-bold text-rose-400 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                Danger Zone
+              </h3>
+              <p className="text-xs text-slate-300">Permanently delete your Findathon profile and stored submission data.</p>
+              
+              <button
+                onClick={() => setDeleteModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-400 bg-rose-950/40 border border-rose-500/40 hover:bg-rose-900/40 transition-colors"
+              >
+                Delete Account
+              </button>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      {/* 3. MOBILE BOTTOM NAVIGATION DOCK (md:hidden) */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md glass-card rounded-full p-2 flex items-center justify-around md:hidden shadow-2xl border border-purple-500/30">
+        {NAV_ITEMS.slice(0, 5).map((item) => {
+          const IconComp = item.icon;
+          const isActive = activeTab === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => switchTab(item.key)}
+              className={`p-2.5 rounded-full transition-colors ${
+                isActive ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+              title={item.label}
+            >
+              <IconComp className="w-5 h-5" />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-md glass-card rounded-3xl p-6 border border-rose-500/40 space-y-4 text-center">
+            <h3 className="text-xl font-extrabold text-rose-400">Are you sure?</h3>
+            <p className="text-xs text-slate-300">This action cannot be undone. Type <span className="font-mono-num font-bold text-white">DELETE</span> below to confirm account removal.</p>
+
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder="Type DELETE"
+              className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-rose-500/40 text-white text-center text-sm focus:outline-none"
+            />
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                className="flex-1 py-3 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 border border-purple-900/30"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleteInput !== 'DELETE'}
+                onClick={() => signOut().then(() => router.push('/'))}
+                className="flex-1 py-3 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-50"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -707,21 +1220,13 @@ function AccountDashboard() {
 
 export default function AccountPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#060816] text-[#F6F8FC] selection:bg-purple-600 selection:text-white">
-      <Navbar />
-
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        <Suspense fallback={
-          <div className="flex-1 flex items-center justify-center py-20 text-center">
-            <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-2" />
-            <p className="text-sm font-semibold text-purple-300">Loading dashboard...</p>
-          </div>
-        }>
-          <AccountDashboard />
-        </Suspense>
-      </main>
-
-      <Footer />
-    </div>
+    <Suspense fallback={
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#060816] text-center">
+        <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-2" />
+        <p className="text-sm font-semibold text-purple-300">Loading Account Dashboard...</p>
+      </div>
+    }>
+      <AccountDashboard />
+    </Suspense>
   );
 }

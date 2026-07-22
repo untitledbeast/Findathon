@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
@@ -23,11 +24,11 @@ import {
 } from 'lucide-react';
 
 const CATEGORY_CHIPS = [
-  { label: '🤖 AI/ML', tag: 'AI' },
-  { label: '⛓ Web3', tag: 'Web3' },
-  { label: '🛡 Cybersecurity', tag: 'Cybersecurity' },
-  { label: '☁ Cloud', tag: 'Cloud' },
-  { label: '🤖 Robotics', tag: 'Robotics' },
+  { label: '🤖 AI/ML', id: 'ai-ml' },
+  { label: '⛓ Web3', id: 'web3' },
+  { label: '🛡 Cybersecurity', id: 'cybersecurity' },
+  { label: '☁ Cloud', id: 'cloud' },
+  { label: '🤖 Robotics', id: 'robotics' },
 ];
 
 function AnimatedCounter({ endValue, prefix = '', suffix = '' }: { endValue: number; prefix?: string; suffix?: string }) {
@@ -40,12 +41,11 @@ function AnimatedCounter({ endValue, prefix = '', suffix = '' }: { endValue: num
       if (entries[0].isIntersecting && !hasAnimated.current) {
         hasAnimated.current = true;
         let startTime: number | null = null;
-        const duration = 2000; // 2 seconds
+        const duration = 2000;
 
         const step = (timestamp: number) => {
           if (!startTime) startTime = timestamp;
           const progress = Math.min((timestamp - startTime) / duration, 1);
-          // Ease out quad
           const easeOut = 1 - (1 - progress) * (1 - progress);
           setCount(Math.floor(easeOut * endValue));
 
@@ -88,7 +88,7 @@ function HeroContent() {
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       
-      const moveX = ((e.clientX - centerX) / rect.width) * -20; // max 20px
+      const moveX = ((e.clientX - centerX) / rect.width) * -20;
       const moveY = ((e.clientY - centerY) / rect.height) * -20;
       setMouseOffset({ x: moveX, y: moveY });
     };
@@ -133,7 +133,7 @@ function HeroContent() {
           <span>✦ Discover. Build. Win.</span>
         </div>
 
-        {/* Main Headline with Stagger */}
+        {/* Main Headline */}
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-[#F6F8FC] tracking-tight leading-tight">
           Discover the world&apos;s{' '}
           <span className="glow-text">best hackathons</span>
@@ -156,7 +156,7 @@ function HeroContent() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900 text-slate-400 border border-purple-900/40">
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900 text-slate-400 border border-purple-900/40 font-mono-num">
               <Command className="w-3 h-3" /> K
             </span>
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
@@ -168,21 +168,21 @@ function HeroContent() {
         {/* CATEGORY CHIPS ROW */}
         <div className="pt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
           {CATEGORY_CHIPS.map((chip, idx) => (
-            <button
-              key={chip.tag}
-              onClick={openSpotlight}
+            <Link
+              key={chip.id}
+              href={`/categories/${chip.id}`}
               className="glass-card hover:bg-purple-600 hover:text-white transition-all duration-300 rounded-full px-4 py-2 text-xs font-semibold text-slate-300 border border-purple-500/20 hover:border-purple-400 shadow-md animate-cascade"
               style={{ animationDelay: `${0.1 * idx}s` }}
             >
               {chip.label}
-            </button>
+            </Link>
           ))}
-          <button
-            onClick={openSpotlight}
+          <Link
+            href="/categories"
             className="text-xs font-bold text-purple-400 hover:text-purple-300 underline underline-offset-4 px-2"
           >
             View all →
-          </button>
+          </Link>
         </div>
 
         {/* STATS CARDS ROW */}
@@ -195,7 +195,6 @@ function HeroContent() {
               </div>
               <p className="text-[11px] text-slate-400 font-medium">Active Hackathons</p>
             </div>
-            {/* Tiny SVG sparkline decoration */}
             <svg className="w-12 h-6 text-purple-400 shrink-0 opacity-70" viewBox="0 0 50 20" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M0 15 Q 12 5, 25 12 T 50 3" />
             </svg>
@@ -369,7 +368,7 @@ export default function HomePage() {
 
             {/* Results count */}
             <div className="text-xs font-semibold text-slate-400 self-end md:self-auto">
-              Showing <span className="text-purple-300 font-bold">{filteredHackathons.length}</span> hackathons
+              Showing <span className="text-purple-300 font-bold font-mono-num">{filteredHackathons.length}</span> hackathons
             </div>
 
           </section>

@@ -108,8 +108,10 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
             Discover
           </Link>
           <Link
-            href="/#categories"
-            className="text-slate-400 hover:text-white transition-colors"
+            href="/categories"
+            className={`transition-colors hover:text-white ${
+              pathname?.startsWith('/categories') ? 'text-white font-semibold' : 'text-slate-400'
+            }`}
           >
             Categories
           </Link>
@@ -121,7 +123,7 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
             >
               <span>Saved</span>
               {savedCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-600 text-white font-bold">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-600 text-white font-bold font-mono-num">
                   {savedCount}
                 </span>
               )}
@@ -257,6 +259,13 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
             className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
           >
             Discover
+          </Link>
+          <Link
+            href="/categories"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
+          >
+            Categories
           </Link>
           <Link
             href="/submit"
