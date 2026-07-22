@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
 import {
-  Trophy,
+  Search,
+  Sparkles,
   PlusCircle,
   Bookmark,
   User as UserIcon,
@@ -14,7 +15,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  LayoutDashboard,
   FileCode2
 } from 'lucide-react';
 
@@ -25,14 +25,29 @@ interface NavbarProps {
 
 export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
   const router = useRouter();
-  const { user, profile, signOut, loading } = useAuth();
+  const pathname = usePathname();
+  const { user, profile, signOut } = useAuth();
   const { openAuthModal } = useAuthModal();
 
+  const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Scroll listener to increase glass opacity
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -63,113 +78,132 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-purple-900/30 bg-slate-950/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-4xl">
+      
+      {/* FLOATING PILL NAVBAR CONTAINER */}
+      <nav
+        className={`glass-card rounded-full px-5 sm:px-6 py-2.5 sm:py-3 shadow-2xl transition-all duration-300 flex items-center justify-between gap-4 ${
+          scrolled
+            ? 'bg-[#0D1224]/90 border-purple-500/30 shadow-[0_12px_40px_rgba(139,92,246,0.25)]'
+            : 'bg-[#0D1224]/60 border-purple-500/15'
+        }`}
+      >
         
-        {/* BRAND LOGO */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-purple-500 to-indigo-500 p-0.5 shadow-lg shadow-purple-900/40 group-hover:scale-105 transition-transform duration-200">
-            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-              <Trophy className="w-5 h-5 text-purple-400 group-hover:rotate-12 transition-transform duration-300" />
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1">
-              Find<span className="text-gradient">athon</span>
-            </span>
-            <span className="text-[10px] text-purple-400 font-medium tracking-wider uppercase -mt-1">
-              Hackathon Finder
-            </span>
-          </div>
+        {/* LEFT: BRAND LOGO */}
+        <Link href="/" className="flex items-center gap-2 group shrink-0">
+          <span className="text-purple-400 group-hover:rotate-12 transition-transform duration-300 text-lg">✦</span>
+          <span className="text-base sm:text-lg font-extrabold tracking-tight text-white flex items-center gap-1">
+            Find<span className="text-gradient">athon</span>
+          </span>
         </Link>
 
-        {/* DESKTOP NAV ACTIONS */}
-        <div className="hidden md:flex items-center gap-3">
-          
-          {/* Saved button */}
+        {/* CENTER: NAV LINKS (Desktop) */}
+        <div className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-medium">
+          <Link
+            href="/"
+            className={`transition-colors hover:text-white ${
+              pathname === '/' ? 'text-white font-semibold' : 'text-slate-400'
+            }`}
+          >
+            Discover
+          </Link>
+          <Link
+            href="/#categories"
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            Categories
+          </Link>
+
           {onOpenSaved && (
             <button
               onClick={onOpenSaved}
-              className="relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-purple-900/40 hover:border-purple-500/40 transition-all duration-200"
+              className="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
             >
-              <Bookmark className="w-4 h-4 text-purple-400" />
               <span>Saved</span>
               {savedCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-600 text-white font-bold">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-600 text-white font-bold">
                   {savedCount}
                 </span>
               )}
             </button>
           )}
 
-          {/* Submit Hackathon Button */}
           <Link
             href="/submit"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/40 hover:shadow-purple-700/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            className={`transition-colors hover:text-white ${
+              pathname === '/submit' ? 'text-white font-semibold' : 'text-slate-400'
+            }`}
           >
-            <PlusCircle className="w-4 h-4" />
+            Submit
+          </Link>
+          <Link
+            href="/#about"
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            About
+          </Link>
+        </div>
+
+        {/* RIGHT: SEARCH, SUBMIT PILL & AUTH */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          
+          {/* Search trigger icon */}
+          <button
+            onClick={() => {
+              if (pathname !== '/') router.push('/');
+              window.scrollTo({ top: 300, behavior: 'smooth' });
+            }}
+            className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+            title="Search hackathons"
+          >
+            <Search className="w-4 h-4 text-purple-400" />
+          </button>
+
+          {/* Submit Hackathon Small Pill Button */}
+          <Link
+            href="/submit"
+            className="aurora-border px-3.5 py-1.5 rounded-full text-xs font-semibold text-white hover:scale-105 active:scale-95 transition-all hidden sm:inline-flex items-center gap-1.5 shadow-md"
+          >
+            <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
             <span>Submit Hackathon</span>
           </Link>
 
-          {/* AUTH STATUS BUTTON / AVATAR DROPDOWN */}
+          {/* User Auth Avatar or Sign In Button */}
           {!user ? (
             <button
               onClick={openAuthModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-900 shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              className="px-4 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition-all hover:scale-105 active:scale-95"
             >
-              {/* Google G icon */}
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>Sign in with Google</span>
+              Sign In
             </button>
           ) : (
             <div className="relative" ref={dropdownRef}>
-              {/* Avatar trigger */}
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-900 border border-purple-900/40 hover:border-purple-500/50 transition-all"
+                className="flex items-center gap-1.5 p-1 rounded-full border border-purple-500/30 hover:border-purple-400 transition-all bg-slate-950/60"
               >
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
                     alt={userName}
-                    className="w-8 h-8 rounded-lg object-cover ring-1 ring-purple-500/40"
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-purple-400/40"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
                     {getInitials(userName)}
                   </div>
                 )}
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown Menu */}
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900 border border-purple-900/40 shadow-2xl p-2 z-50 space-y-1 animate-in fade-in slide-in-from-top-2">
-                  
-                  {/* User info */}
-                  <div className="px-3 py-2.5 border-b border-purple-900/30">
+                <div className="absolute right-0 mt-3 w-60 rounded-2xl glass-card border border-purple-500/30 p-2 z-50 space-y-1 shadow-2xl animate-fade-in-up">
+                  <div className="px-3 py-2 border-b border-purple-900/30">
                     <p className="text-xs font-bold text-white truncate">{userName}</p>
-                    <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
                   </div>
 
-                  {/* Links */}
                   <Link
                     href="/account"
                     onClick={() => setDropdownOpen(false)}
@@ -197,101 +231,67 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
                       <span>Sign Out</span>
                     </button>
                   </div>
-
                 </div>
               )}
             </div>
           )}
 
+          {/* MOBILE HAMBURGER MENU BUTTON */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-1.5 rounded-full text-slate-300 hover:text-white"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
         </div>
 
-        {/* MOBILE MENU TOGGLE */}
-        <div className="flex md:hidden items-center gap-2">
-          {!user ? (
-            <button
-              onClick={openAuthModal}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-900"
-            >
-              Sign In
-            </button>
-          ) : (
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl bg-slate-900 text-slate-200 border border-purple-900/40"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          )}
-        </div>
+      </nav>
 
-      </div>
-
-      {/* MOBILE MENU DROPDOWN */}
+      {/* MOBILE DROPDOWN MENU */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-purple-900/30 bg-slate-950 p-4 space-y-3">
+        <div className="md:hidden mt-2 p-4 rounded-3xl glass-card border border-purple-500/30 space-y-3 animate-fade-in-up">
+          <Link
+            href="/"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
+          >
+            Discover
+          </Link>
+          <Link
+            href="/submit"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-xs font-bold text-purple-300 py-1.5 hover:text-white"
+          >
+            Submit Hackathon
+          </Link>
           {user && (
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-purple-900/30 flex items-center gap-3">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={userName} className="w-9 h-9 rounded-lg object-cover" />
-              ) : (
-                <div className="w-9 h-9 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
-                  {getInitials(userName)}
-                </div>
-              )}
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate">{userName}</p>
-                <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
-              </div>
-            </div>
+            <>
+              <Link
+                href="/account"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
+              >
+                My Account
+              </Link>
+              <Link
+                href="/account?tab=submissions"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
+              >
+                My Submissions
+              </Link>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleSignOut();
+                }}
+                className="block text-xs font-bold text-rose-400 py-1.5 hover:text-rose-300"
+              >
+                Sign Out
+              </button>
+            </>
           )}
-
-          <div className="space-y-1">
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-900"
-            >
-              Explore Hackathons
-            </Link>
-
-            <Link
-              href="/submit"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2 rounded-xl text-xs font-bold text-purple-300 hover:bg-purple-950/40"
-            >
-              Submit Hackathon
-            </Link>
-
-            {user && (
-              <>
-                <Link
-                  href="/account"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-900"
-                >
-                  My Account
-                </Link>
-
-                <Link
-                  href="/account?tab=submissions"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-900"
-                >
-                  My Submissions
-                </Link>
-
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleSignOut();
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-950/40"
-                >
-                  Sign Out
-                </button>
-              </>
-            )}
-          </div>
         </div>
       )}
 

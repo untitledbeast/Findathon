@@ -58,17 +58,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md p-8 rounded-3xl bg-slate-900 border border-purple-900/40 shadow-2xl space-y-6 text-center overflow-hidden"
+        className="relative w-full max-w-md p-8 rounded-3xl glass-card border border-purple-500/30 shadow-2xl space-y-6 text-center overflow-hidden animate-cascade"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top right close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
           title="Close"
         >
           <X className="w-5 h-5" />
@@ -76,13 +76,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
         {/* Brand Logo */}
         <div className="flex flex-col items-center space-y-3 pt-2">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 via-purple-500 to-indigo-500 p-0.5 shadow-lg shadow-purple-900/50">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl aurora-border p-0.5 shadow-lg shadow-purple-900/50">
+            <div className="w-full h-full bg-[#060816] rounded-[14px] flex items-center justify-center">
               <Trophy className="w-7 h-7 text-purple-400" />
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-extrabold text-white tracking-tight">Join Findathon</h3>
+            <h3 className="text-2xl font-black tracking-tight glow-text">Join Findathon</h3>
             <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
               Sign in to save hackathons, submit events, and connect with the global developer community.
             </p>

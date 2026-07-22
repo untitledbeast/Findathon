@@ -23,9 +23,12 @@ import {
   Loader2,
   Save,
   MessageSquare,
-  AlertCircle,
-  Share2,
-  Camera
+  Trophy,
+  Award,
+  Compass,
+  Rocket,
+  ShieldCheck,
+  Zap
 } from 'lucide-react';
 
 function TwitterIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -49,6 +52,44 @@ function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
     <svg className={className} fill="currentColor" viewBox="0 0 24 24">
       <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
     </svg>
+  );
+}
+
+// SVG Circle Completion Ring Component
+function CompletionRing({ percentage }: { percentage: number }) {
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (circumference * percentage) / 100;
+
+  return (
+    <div className="relative flex items-center justify-center w-24 h-24">
+      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+        <circle
+          cx="40"
+          cy="40"
+          r={radius}
+          stroke="rgba(139, 92, 246, 0.15)"
+          strokeWidth="6"
+          fill="transparent"
+        />
+        <circle
+          cx="40"
+          cy="40"
+          r={radius}
+          stroke="#8B5CF6"
+          strokeWidth="6"
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-base font-black text-white font-mono-num">{percentage}%</span>
+        <span className="text-[9px] text-slate-400 font-semibold uppercase">Profile</span>
+      </div>
+    </div>
   );
 }
 
@@ -107,15 +148,15 @@ function AccountDashboard() {
     }
   }, [profile]);
 
-  // Load submissions when switching tabs
+  // Load user submissions
   useEffect(() => {
-    if (user?.id && activeTab === 'submissions') {
+    if (user?.id) {
       setSubmissionsLoading(true);
       getUserHackathons(user.id)
         .then(data => setUserHackathons(data))
         .finally(() => setSubmissionsLoading(false));
     }
-  }, [user?.id, activeTab]);
+  }, [user?.id]);
 
   // Toast Auto-Dismiss
   useEffect(() => {
@@ -178,10 +219,10 @@ function AccountDashboard() {
   if (!user) {
     return (
       <div className="flex-1 max-w-xl w-full mx-auto px-4 py-20 text-center space-y-6">
-        <div className="w-16 h-16 mx-auto rounded-3xl bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-xl">
+        <div className="w-16 h-16 mx-auto rounded-3xl glass-card border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-xl">
           <UserIcon className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl font-bold text-white">Sign In Required</h2>
+        <h2 className="text-2xl font-black text-white glow-text">Sign In Required</h2>
         <p className="text-sm text-slate-300 leading-relaxed">
           Please sign in to access your profile settings, view submitted hackathons, and manage your account.
         </p>
@@ -198,65 +239,171 @@ function AccountDashboard() {
   const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture;
 
   return (
-    <div className="space-y-8">
-      {/* TOP HEADER */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-purple-900/40 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+    <div className="space-y-8 animate-fade-in-up">
+      
+      {/* FLOATING DASHBOARD GRID HEADER */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <div className="flex items-center gap-5">
-          {/* Avatar */}
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="Profile avatar"
-              className="w-20 h-20 rounded-2xl object-cover ring-2 ring-purple-500/50 shadow-lg"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-2xl bg-purple-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg">
-              {formData.full_name ? formData.full_name.slice(0, 2).toUpperCase() : 'U'}
-            </div>
-          )}
-
-          <div className="space-y-1 text-center sm:text-left">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {formData.full_name || user.email?.split('@')[0]}
-            </h1>
-            <p className="text-xs text-purple-300 font-medium">{user.email}</p>
-            {formData.organization && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/40">
-                <Building2 className="w-3 h-3 text-purple-400" />
-                {formData.organization}
-              </span>
+        {/* Profile Card (2 cols) */}
+        <div className="md:col-span-2 glass-card rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
+          
+          <div className="flex items-center gap-5 z-10">
+            {/* Avatar */}
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Profile avatar"
+                className="w-20 h-20 rounded-2xl object-cover ring-2 ring-purple-500/50 shadow-lg"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg">
+                {formData.full_name ? formData.full_name.slice(0, 2).toUpperCase() : 'U'}
+              </div>
             )}
+
+            <div className="space-y-1 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight glow-text">
+                {formData.full_name || user.email?.split('@')[0]}
+              </h1>
+              <p className="text-xs text-purple-300 font-medium">{user.email}</p>
+              {formData.organization && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-950/80 text-purple-300 border border-purple-800/40">
+                  <Building2 className="w-3.5 h-3.5 text-purple-400" />
+                  {formData.organization}
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* SVG Completion Ring */}
+          <div className="z-10 shrink-0">
+            <CompletionRing percentage={completeness} />
+          </div>
+
         </div>
 
-        {/* Completeness Bar */}
-        <div className="w-full sm:w-56 p-4 rounded-2xl bg-slate-950/80 border border-purple-900/30 space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold">
-            <span className="text-slate-300">Profile Completeness</span>
-            <span className="text-purple-400">{completeness}%</span>
+        {/* Quick Stats Panel (1 col) */}
+        <div className="glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4 border border-purple-500/20">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Account Metrics</span>
+            <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
           </div>
-          <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-500"
-              style={{ width: `${completeness}%` }}
-            />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 rounded-2xl bg-[#0D1224] border border-purple-900/30">
+              <span className="text-xs text-slate-400 block">Submissions</span>
+              <span className="text-2xl font-black text-white font-mono-num">{userHackathons.length}</span>
+            </div>
+            <div className="p-3 rounded-2xl bg-[#0D1224] border border-purple-900/30">
+              <span className="text-xs text-slate-400 block">Status</span>
+              <span className="text-2xl font-black text-emerald-400 font-mono-num">Active</span>
+            </div>
           </div>
         </div>
 
       </div>
 
-      {/* TAB NAVIGATION BUTTONS */}
+      {/* ACHIEVEMENT BADGES SECTION */}
+      <div className="glass-card rounded-3xl p-6 sm:p-8 space-y-4 border border-purple-500/20">
+        <div className="flex items-center justify-between border-b border-purple-900/30 pb-3">
+          <div>
+            <h3 className="text-lg font-black text-white glow-text flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              Achievement Badges
+            </h3>
+            <p className="text-xs text-slate-400">Badges earned through platform activity and event submissions.</p>
+          </div>
+          <span className="text-xs font-bold text-purple-400 font-mono-num">
+            {userHackathons.length > 0 ? '4 / 4 Unlocked' : '3 / 4 Unlocked'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          
+          {/* Badge 1: Early Bird */}
+          <div className="p-4 rounded-2xl bg-[#0D1224] aurora-border space-y-2 relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                <Award className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                Unlocked
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">Early Bird</h4>
+              <p className="text-[11px] text-slate-400">Pioneer member of Findathon</p>
+            </div>
+          </div>
+
+          {/* Badge 2: Explorer */}
+          <div className="p-4 rounded-2xl bg-[#0D1224] aurora-border space-y-2 relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                <Compass className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                Unlocked
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">Explorer</h4>
+              <p className="text-[11px] text-slate-400">Discovered global hackathons</p>
+            </div>
+          </div>
+
+          {/* Badge 3: Participant */}
+          <div className="p-4 rounded-2xl bg-[#0D1224] aurora-border space-y-2 relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-indigo-950/80 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                <Zap className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                Unlocked
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">Participant</h4>
+              <p className="text-[11px] text-slate-400">Active builder & hacker</p>
+            </div>
+          </div>
+
+          {/* Badge 4: Top Organizer */}
+          <div className={`p-4 rounded-2xl bg-[#0D1224] space-y-2 relative overflow-hidden border ${
+            userHackathons.length > 0 ? 'aurora-border' : 'border-purple-900/30 opacity-70'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-amber-950/80 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                <Rocket className="w-5 h-5" />
+              </div>
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                userHackathons.length > 0
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-500/30'
+                  : 'bg-slate-900 text-slate-400 border-slate-700'
+              }`}>
+                {userHackathons.length > 0 ? 'Unlocked' : 'Locked'}
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-white">Top Organizer</h4>
+              <p className="text-[11px] text-slate-400">Published a hackathon event</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* DASHBOARD TAB CONTROLS */}
       <div className="flex items-center gap-3 border-b border-purple-900/30 pb-4">
         <button
           onClick={() => {
             setActiveTab('profile');
             router.push('/account');
           }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'profile'
-              ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/50 scale-105'
-              : 'bg-slate-900/80 text-slate-300 border-purple-900/30 hover:border-purple-500/40'
+              ? 'aurora-border text-white shadow-lg'
+              : 'glass-card text-slate-400 hover:text-white border-purple-900/30'
           }`}
         >
           <UserIcon className="w-4 h-4" />
@@ -268,37 +415,37 @@ function AccountDashboard() {
             setActiveTab('submissions');
             router.push('/account?tab=submissions');
           }}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'submissions'
-              ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/50 scale-105'
-              : 'bg-slate-900/80 text-slate-300 border-purple-900/30 hover:border-purple-500/40'
+              ? 'aurora-border text-white shadow-lg'
+              : 'glass-card text-slate-400 hover:text-white border-purple-900/30'
           }`}
         >
           <FileCode2 className="w-4 h-4" />
-          <span>My Submissions</span>
+          <span>My Submissions ({userHackathons.length})</span>
         </button>
       </div>
 
-      {/* TAB 1: MY PROFILE */}
+      {/* TAB 1: MY PROFILE FORM */}
       {activeTab === 'profile' && (
-        <form onSubmit={handleProfileSave} className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-purple-900/40 backdrop-blur-xl space-y-6 shadow-2xl">
+        <form onSubmit={handleProfileSave} className="glass-card rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-purple-500/20">
           
           <div className="border-b border-purple-900/30 pb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-bold text-white">Personal & Account Information</h3>
+              <h3 className="text-lg font-bold text-white glow-text">Personal & Account Information</h3>
               <p className="text-xs text-slate-400">Manage your profile details and contact links.</p>
             </div>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md transition-all disabled:opacity-50"
+              className="aurora-border px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 inline-flex items-center gap-2"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               <span>Save Profile</span>
             </button>
           </div>
 
-          {/* Grid Fields */}
+          {/* Form Fields Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             
             {/* Full Name */}
@@ -312,7 +459,7 @@ function AccountDashboard() {
                 value={formData.full_name}
                 onChange={handleProfileChange}
                 placeholder="Your full name"
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
               />
             </div>
 
@@ -327,7 +474,7 @@ function AccountDashboard() {
                 value={formData.organization}
                 onChange={handleProfileChange}
                 placeholder="e.g. Stanford University or Acme Inc"
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
               />
             </div>
 
@@ -335,7 +482,7 @@ function AccountDashboard() {
             <div className="sm:col-span-2 space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <label className="font-semibold text-slate-300">Bio</label>
-                <span className="text-slate-500">{formData.bio.length}/200</span>
+                <span className="text-slate-500 font-mono-num">{formData.bio.length}/200</span>
               </div>
               <textarea
                 name="bio"
@@ -344,7 +491,7 @@ function AccountDashboard() {
                 value={formData.bio}
                 onChange={handleProfileChange}
                 placeholder="Tell us briefly about your background and interests..."
-                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
               />
             </div>
 
@@ -361,7 +508,7 @@ function AccountDashboard() {
                   value={formData.phone}
                   onChange={handleProfileChange}
                   placeholder="+91 98765 43210"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
                 />
               </div>
             </div>
@@ -379,7 +526,7 @@ function AccountDashboard() {
                   value={formData.website}
                   onChange={handleProfileChange}
                   placeholder="https://yourportfolio.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
                 />
               </div>
             </div>
@@ -391,7 +538,6 @@ function AccountDashboard() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-purple-400">Social Profiles</h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Twitter */}
               <div className="relative flex items-center">
                 <div className="absolute left-3.5 text-purple-400">
                   <TwitterIcon />
@@ -401,12 +547,11 @@ function AccountDashboard() {
                   name="social_twitter"
                   value={formData.social_twitter}
                   onChange={handleProfileChange}
-                  placeholder="Twitter/X handle (e.g. alex_dev)"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Twitter/X handle"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
                 />
               </div>
 
-              {/* LinkedIn */}
               <div className="relative flex items-center">
                 <div className="absolute left-3.5 text-purple-400">
                   <LinkedinIcon />
@@ -416,12 +561,11 @@ function AccountDashboard() {
                   name="social_linkedin"
                   value={formData.social_linkedin}
                   onChange={handleProfileChange}
-                  placeholder="LinkedIn URL (e.g. linkedin.com/in/...)"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="LinkedIn URL"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
                 />
               </div>
 
-              {/* Instagram */}
               <div className="relative flex items-center">
                 <div className="absolute left-3.5 text-purple-400">
                   <InstagramIcon />
@@ -432,11 +576,10 @@ function AccountDashboard() {
                   value={formData.social_instagram}
                   onChange={handleProfileChange}
                   placeholder="Instagram handle"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
                 />
               </div>
 
-              {/* Discord */}
               <div className="relative flex items-center">
                 <MessageSquare className="absolute left-3.5 top-3.5 w-4 h-4 text-purple-400" />
                 <input
@@ -445,7 +588,7 @@ function AccountDashboard() {
                   value={formData.social_discord}
                   onChange={handleProfileChange}
                   placeholder="Discord username or invite link"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-purple-900/40 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0D1224] border border-violet-900/40 text-[#F6F8FC] text-sm focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]"
                 />
               </div>
             </div>
@@ -454,18 +597,18 @@ function AccountDashboard() {
         </form>
       )}
 
-      {/* TAB 2: MY SUBMISSIONS */}
+      {/* TAB 2: MY SUBMISSIONS PANEL */}
       {activeTab === 'submissions' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white">Your Submitted Hackathons</h3>
+              <h3 className="text-xl font-black text-white glow-text">Your Submitted Hackathons</h3>
               <p className="text-xs text-slate-400">Track verification & approval statuses of hackathons you published.</p>
             </div>
 
             <Link
               href="/submit"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md"
+              className="aurora-border px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md inline-flex items-center gap-2 hover:scale-105 transition-all"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Submit New</span>
@@ -488,10 +631,10 @@ function AccountDashboard() {
                 return (
                   <div
                     key={h.id}
-                    className="p-5 rounded-2xl bg-slate-900/80 border border-purple-900/30 hover:border-purple-500/40 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    className="p-5 rounded-2xl glass-card border border-purple-900/30 hover:border-purple-500/40 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl bg-slate-950 overflow-hidden shrink-0 border border-purple-900/30">
+                      <div className="w-16 h-16 rounded-xl bg-[#060816] overflow-hidden shrink-0 border border-purple-900/30">
                         <img
                           src={h.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=300&auto=format&fit=crop'}
                           alt={h.title}
@@ -501,7 +644,7 @@ function AccountDashboard() {
                       <div className="space-y-1">
                         <h4 className="font-bold text-white text-base">{h.title}</h4>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 font-mono-num">
                             <Calendar className="w-3.5 h-3.5 text-purple-400" />
                             {h.start_date} to {h.end_date}
                           </span>
@@ -520,7 +663,7 @@ function AccountDashboard() {
 
                       <Link
                         href={`/hackathons/${h.id}`}
-                        className="p-2 rounded-xl bg-slate-950 text-slate-300 hover:text-purple-300 border border-purple-900/30"
+                        className="p-2 rounded-xl bg-[#060816] text-slate-300 hover:text-purple-300 border border-purple-900/30"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Link>
@@ -530,7 +673,7 @@ function AccountDashboard() {
               })}
             </div>
           ) : (
-            <div className="p-12 rounded-3xl bg-slate-900/40 border border-purple-900/20 text-center space-y-4">
+            <div className="p-12 rounded-3xl glass-card border border-purple-900/20 text-center space-y-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-purple-400">
                 <FileCode2 className="w-7 h-7" />
               </div>
@@ -540,7 +683,7 @@ function AccountDashboard() {
               </p>
               <Link
                 href="/submit"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 text-white hover:bg-purple-500 shadow-md"
+                className="aurora-border px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md inline-flex items-center gap-2 hover:scale-105 transition-all"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Submit a Hackathon Now</span>
@@ -552,18 +695,19 @@ function AccountDashboard() {
 
       {/* TOAST NOTIFICATION */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-800 border border-purple-500/40 text-slate-100 shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl glass-card border border-purple-500/40 text-slate-100 shadow-2xl flex items-center gap-3 animate-fade-in-up">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
+
     </div>
   );
 }
 
 export default function AccountPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#0b0f19] text-slate-100 selection:bg-purple-600 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-[#060816] text-[#F6F8FC] selection:bg-purple-600 selection:text-white">
       <Navbar />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
