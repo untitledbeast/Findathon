@@ -180,11 +180,11 @@ export default function CategoriesPage() {
     async function loadCategoryCounts() {
       setLoading(true);
       const countsMap: Record<string, number> = {};
-      const all = await discoveryEngine.discover();
+      const { results: all } = await discoveryEngine.discover();
 
       CATEGORIES.forEach(cat => {
         const count = all.filter(h =>
-          h.tags?.some(tag => cat.tags.some(ct => tag.toLowerCase().includes(ct.toLowerCase())))
+          h.tags?.some((tag: string) => cat.tags.some(ct => tag.toLowerCase().includes(ct.toLowerCase())))
         ).length;
         countsMap[cat.id] = Math.max(count, cat.fallbackCount);
       });

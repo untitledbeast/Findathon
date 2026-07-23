@@ -212,7 +212,7 @@ function AccountDashboard() {
   // Load User Data via Discovery Engine & Storage Service
   useEffect(() => {
     async function loadDashboardData() {
-      const all = await discoveryEngine.discover();
+      const { results: all } = await discoveryEngine.discover();
       setAllHackathons(all as unknown as Hackathon[]);
 
       if (user?.id) {

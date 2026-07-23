@@ -1,220 +1,282 @@
--- =====================================================================
--- FINDATHON — ENTERPRISE DATABASE MIGRATION SCRIPT
--- Enable PostGIS, Spatial Indexes, Lifecycle States, Universities & Organizers
--- =====================================================================
-
--- 1. Enable PostGIS Extension for spatial operations
+-- Enable PostGIS, Trigram, and Unaccent extensions
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
--- 2. Add spatial metadata & lifecycle columns to hackathons table
-ALTER TABLE hackathons 
-  ADD COLUMN IF NOT EXISTS latitude NUMERIC(10, 7),
-  ADD COLUMN IF NOT EXISTS longitude NUMERIC(10, 7),
-  ADD COLUMN IF NOT EXISTS geo_point GEOGRAPHY(POINT, 4326),
-  ADD COLUMN IF NOT EXISTS geohash TEXT,
-  ADD COLUMN IF NOT EXISTS plus_code TEXT,
-  ADD COLUMN IF NOT EXISTS place_id TEXT,
-  ADD COLUMN IF NOT EXISTS country_code VARCHAR(10),
-  ADD COLUMN IF NOT EXISTS state TEXT,
-  ADD COLUMN IF NOT EXISTS district TEXT,
-  ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC',
-  ADD COLUMN IF NOT EXISTS prize_pool TEXT,
-  ADD COLUMN IF NOT EXISTS prize_amount NUMERIC DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS difficulty TEXT DEFAULT 'open'
-    CHECK (difficulty IN ('beginner', 'intermediate', 'advanced', 'open')),
-  ADD COLUMN IF NOT EXISTS participant_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS lifecycle_state TEXT DEFAULT 'published'
-    CHECK (lifecycle_state IN ('draft', 'submitted', 'pending_review', 'verified', 'published', 'registration_closed', 'event_running', 'completed', 'archived')),
-  ADD COLUMN IF NOT EXISTS base_score NUMERIC DEFAULT 50.0,
-  ADD COLUMN IF NOT EXISTS registration_deadline DATE,
-  ADD COLUMN IF NOT EXISTS view_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS avg_rating NUMERIC(3, 2) DEFAULT 0.0,
-  ADD COLUMN IF NOT EXISTS review_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS save_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS university_id UUID,
-  ADD COLUMN IF NOT EXISTS organizer_id UUID,
-  ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+-- Search history per user (logged-in search persistence)
+CREATE TABLE IF NOT EXISTS search_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  query TEXT NOT NULL,
+  parsed_filters JSONB,
+  result_count INT DEFAULT 0,
+  clicked_hackathon_id UUID REFERENCES hackathons(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 3. Trigger to auto-update geo_point when latitude/longitude change
-CREATE OR REPLACE FUNCTION update_geo_point()
+-- Search interaction events (lightweight search analytics)
+CREATE TABLE IF NOT EXISTS search_events (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  query TEXT NOT NULL,
+  search_source TEXT DEFAULT 'spotlight',
+  clicked_result_id UUID REFERENCES hackathons(id) ON DELETE SET NULL,
+  position INT,
+  results_count INT DEFAULT 0,
+  response_time_ms INT DEFAULT 0,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Saved collections (Pinterest-style)
+CREATE TABLE IF NOT EXISTS saved_collections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  emoji TEXT DEFAULT '📌',
+  is_public BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS collection_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  collection_id UUID REFERENCES saved_collections(id) ON DELETE CASCADE,
+  hackathon_id UUID REFERENCES hackathons(id) ON DELETE CASCADE,
+  added_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(collection_id, hackathon_id)
+);
+
+-- User interests (for personalization ranking)
+CREATE TABLE IF NOT EXISTS user_interests (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  tag TEXT NOT NULL,
+  weight NUMERIC DEFAULT 1.0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, tag)
+);
+
+-- Curated collections (system / admin created query collections)
+CREATE TABLE IF NOT EXISTS curated_collections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  emoji TEXT DEFAULT '✨',
+  filter_tags TEXT[] DEFAULT '{}',
+  filter_query JSONB DEFAULT '{}',
+  display_order INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO curated_collections (title, description, emoji, filter_tags, filter_query, display_order) VALUES
+('Top AI Hackathons', 'Best artificial intelligence events', '🤖', ARRAY['AI','ML','Machine Learning'], '{"tags":["AI"]}', 1),
+('Beginner Friendly', 'Perfect for your first hackathon', '🌱', ARRAY['Beginner'], '{"difficulty":"beginner"}', 2),
+('Big Prize Pools', 'Events with significant prizes', '💰', ARRAY[], '{"prizeMin":50000}', 3),
+('100% Online', 'Join from anywhere in the world', '🌐', ARRAY[], '{"isOnline":true}', 4),
+('Web3 & Blockchain', 'Decentralized future builders', '⛓', ARRAY['Web3','Blockchain','DeFi'], '{"tags":["Web3"]}', 5)
+ON CONFLICT DO NOTHING;
+
+-- RLS Policies
+ALTER TABLE search_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_collections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collection_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_interests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE curated_collections ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own_search_history" ON search_history FOR ALL TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "own_search_events" ON search_events FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "own_collections" ON saved_collections FOR ALL TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "public_read_public_collections" ON saved_collections FOR SELECT TO anon USING (is_public = true);
+CREATE POLICY "own_collection_items" ON collection_items FOR ALL TO authenticated 
+  USING (auth.uid() IN (SELECT user_id FROM saved_collections WHERE id = collection_id));
+CREATE POLICY "own_interests" ON user_interests FOR ALL TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "public_read_curated" ON curated_collections FOR SELECT TO anon, authenticated USING (is_active = true);
+
+-- Trigram GIN indexes for fuzzy search
+CREATE INDEX IF NOT EXISTS hackathons_title_trgm ON hackathons USING GIN (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS hackathons_description_trgm ON hackathons USING GIN (description gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS hackathons_organizer_trgm ON hackathons USING GIN (organizer gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS hackathons_city_trgm ON hackathons USING GIN (location_city gin_trgm_ops);
+
+-- Full text search tsvector column
+ALTER TABLE hackathons ADD COLUMN IF NOT EXISTS search_vector TSVECTOR;
+
+CREATE OR REPLACE FUNCTION update_hackathon_search_vector()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
-    NEW.geo_point = ST_SetSRID(
-      ST_MakePoint(NEW.longitude, NEW.latitude), 
-      4326
-    )::GEOGRAPHY;
-  END IF;
+  NEW.search_vector = 
+    setweight(to_tsvector('english', COALESCE(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('english', COALESCE(NEW.organizer, '')), 'B') ||
+    setweight(to_tsvector('english', COALESCE(NEW.location_city, '')), 'B') ||
+    setweight(to_tsvector('english', COALESCE(NEW.description, '')), 'C') ||
+    setweight(to_tsvector('english', COALESCE(array_to_string(NEW.tags, ' '), '')), 'A');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS sync_geo_point ON hackathons;
-CREATE TRIGGER sync_geo_point
+CREATE OR REPLACE TRIGGER hackathon_search_vector_update
   BEFORE INSERT OR UPDATE ON hackathons
-  FOR EACH ROW EXECUTE FUNCTION update_geo_point();
+  FOR EACH ROW EXECUTE FUNCTION update_hackathon_search_vector();
 
--- 4. Spatial & B-Tree / GIN Indexes
-CREATE INDEX IF NOT EXISTS hackathons_geo_idx ON hackathons USING GIST(geo_point);
-CREATE INDEX IF NOT EXISTS hackathons_lifecycle_idx ON hackathons(lifecycle_state);
-CREATE INDEX IF NOT EXISTS hackathons_deadline_idx ON hackathons(registration_deadline);
-CREATE INDEX IF NOT EXISTS hackathons_featured_idx ON hackathons(is_featured);
-CREATE INDEX IF NOT EXISTS hackathons_verified_idx ON hackathons(is_verified);
-CREATE INDEX IF NOT EXISTS hackathons_tags_idx ON hackathons USING GIN(tags);
-CREATE INDEX IF NOT EXISTS hackathons_title_trgm_idx ON hackathons USING GIN(title gin_trgm_ops);
+-- Backfill search vectors
+UPDATE hackathons SET title = title;
 
--- 5. Universities Table
-CREATE TABLE IF NOT EXISTS universities (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  city TEXT,
-  state TEXT,
-  country TEXT,
-  country_code VARCHAR(10),
-  latitude NUMERIC(10,7),
-  longitude NUMERIC(10,7),
-  geo_point GEOGRAPHY(POINT, 4326),
-  website TEXT,
-  logo_url TEXT,
-  reputation_rank INT DEFAULT 100,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+CREATE INDEX IF NOT EXISTS hackathons_search_vector_idx 
+  ON hackathons USING GIN (search_vector);
 
-CREATE INDEX IF NOT EXISTS universities_geo_idx ON universities USING GIST(geo_point);
-
--- 6. Organizers Table
-CREATE TABLE IF NOT EXISTS organizers (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  organization_type TEXT DEFAULT 'community', -- community, corporate, university, student_club
-  website TEXT,
-  logo_url TEXT,
-  reputation_score NUMERIC(5,2) DEFAULT 75.00,
-  verified_events_count INT DEFAULT 0,
-  is_verified BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 7. Event Logs (Audit & Analytics Telemetry)
-CREATE TABLE IF NOT EXISTS event_logs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  action TEXT NOT NULL, -- viewed, bookmarked, registered, shared, clicked_marker, opened_university
-  entity_type TEXT DEFAULT 'hackathon',
-  entity_id UUID,
-  metadata JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS event_logs_action_idx ON event_logs(action);
-CREATE INDEX IF NOT EXISTS event_logs_created_at_idx ON event_logs(created_at);
-
--- 8. Followed Areas Table
-CREATE TABLE IF NOT EXISTS followed_areas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  area_type TEXT CHECK (area_type IN ('city', 'country', 'university', 'radius')),
-  area_name TEXT NOT NULL,
-  latitude NUMERIC(10,7),
-  longitude NUMERIC(10,7),
-  radius_km INT DEFAULT 50,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, area_name)
-);
-
-ALTER TABLE followed_areas ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own_followed_areas" ON followed_areas
-  FOR ALL TO authenticated USING (auth.uid() = user_id);
-
--- 9. Seed Coordinates for Major Indian Tech Hubs
-UPDATE hackathons SET latitude = 19.0760, longitude = 72.8777, base_score = 85.0
-  WHERE location_city ILIKE '%mumbai%' AND latitude IS NULL;
-UPDATE hackathons SET latitude = 28.7041, longitude = 77.1025, base_score = 80.0 
-  WHERE location_city ILIKE '%delhi%' AND latitude IS NULL;
-UPDATE hackathons SET latitude = 12.9716, longitude = 77.5946, base_score = 95.0 
-  WHERE (location_city ILIKE '%bangalore%' OR location_city ILIKE '%bengaluru%') AND latitude IS NULL;
-UPDATE hackathons SET latitude = 18.5204, longitude = 73.8567, base_score = 75.0 
-  WHERE location_city ILIKE '%pune%' AND latitude IS NULL;
-UPDATE hackathons SET latitude = 13.0827, longitude = 80.2707, base_score = 70.0 
-  WHERE location_city ILIKE '%chennai%' AND latitude IS NULL;
-
--- 10. Proximity Radius Search RPC Function
-CREATE OR REPLACE FUNCTION hackathons_within_radius(
-  lat NUMERIC,
-  lng NUMERIC,
-  radius_km NUMERIC DEFAULT 100
+-- Master SQL discovery procedure (PostgreSQL Filtering & Text Relevance)
+CREATE OR REPLACE FUNCTION discover_hackathons(
+  p_query TEXT DEFAULT NULL,
+  p_tags TEXT[] DEFAULT NULL,
+  p_is_online BOOLEAN DEFAULT NULL,
+  p_difficulty TEXT DEFAULT NULL,
+  p_prize_min NUMERIC DEFAULT NULL,
+  p_city TEXT DEFAULT NULL,
+  p_start_after DATE DEFAULT NULL,
+  p_start_before DATE DEFAULT NULL,
+  p_status_filter TEXT DEFAULT NULL,
+  p_user_lat NUMERIC DEFAULT NULL,
+  p_user_lng NUMERIC DEFAULT NULL,
+  p_radius_km NUMERIC DEFAULT NULL,
+  p_limit INT DEFAULT 20,
+  p_offset INT DEFAULT 0
 )
 RETURNS TABLE(
-  id UUID, title TEXT, description TEXT, start_date DATE, end_date DATE,
-  location_city TEXT, location_college TEXT, is_online BOOLEAN, tags TEXT[],
-  register_url TEXT, organizer TEXT, cover_image_url TEXT, status TEXT,
-  latitude NUMERIC, longitude NUMERIC, prize_pool TEXT, prize_amount NUMERIC,
-  difficulty TEXT, is_featured BOOLEAN, is_verified BOOLEAN, registration_deadline DATE,
-  avg_rating NUMERIC, review_count INT, save_count INT, view_count INT,
-  base_score NUMERIC, distance_km NUMERIC
+  id UUID,
+  title TEXT,
+  description TEXT,
+  start_date DATE,
+  end_date DATE,
+  registration_deadline DATE,
+  location_city TEXT,
+  location_college TEXT,
+  is_online BOOLEAN,
+  tags TEXT[],
+  register_url TEXT,
+  organizer TEXT,
+  cover_image_url TEXT,
+  status TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  prize_pool TEXT,
+  prize_amount NUMERIC,
+  difficulty TEXT,
+  is_featured BOOLEAN,
+  avg_rating NUMERIC,
+  review_count INT,
+  save_count INT,
+  view_count INT,
+  relevance_score NUMERIC,
+  distance_km NUMERIC,
+  days_until_deadline INT
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
-    h.id, h.title, h.description, h.start_date, h.end_date,
-    h.location_city, h.location_college, h.is_online, h.tags,
-    h.register_url, h.organizer, h.cover_image_url, h.status,
-    h.latitude, h.longitude, h.prize_pool, h.prize_amount,
-    h.difficulty, h.is_featured, h.is_verified, h.registration_deadline,
-    h.avg_rating, h.review_count, h.save_count, h.view_count,
-    h.base_score,
-    ROUND((ST_Distance(
-      h.geo_point,
-      ST_SetSRID(ST_MakePoint(lng, lat), 4326)::GEOGRAPHY
-    ) / 1000)::NUMERIC, 1) AS distance_km
-  FROM hackathons h
-  WHERE 
-    (h.status = 'approved' OR h.lifecycle_state = 'published')
-    AND h.is_archived = FALSE
-    AND h.geo_point IS NOT NULL
-    AND ST_DWithin(
-      h.geo_point,
-      ST_SetSRID(ST_MakePoint(lng, lat), 4326)::GEOGRAPHY,
-      LEAST(radius_km, 500) * 1000 -- Hard cap at 500km for security
-    )
-  ORDER BY distance_km ASC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+  WITH scored AS (
+    SELECT
+      h.*,
+      -- SQL RELEVANCE SCORE: (text_relevance * 0.5) + (trigram_similarity * 0.2) + (freshness * 0.2) + (urgency * 0.1)
+      (
+        CASE WHEN p_query IS NOT NULL AND p_query != '' THEN
+          CASE WHEN h.search_vector @@ plainto_tsquery('english', p_query)
+            THEN ts_rank(h.search_vector, plainto_tsquery('english', p_query)) * 50
+            ELSE similarity(h.title, p_query) * 20
+          END
+        ELSE 10 END
 
--- 11. Viewport Bounds Query RPC Function
-CREATE OR REPLACE FUNCTION hackathons_in_bounds(
-  south NUMERIC, west NUMERIC, north NUMERIC, east NUMERIC
-)
-RETURNS TABLE(
-  id UUID, title TEXT, start_date DATE, end_date DATE,
-  location_city TEXT, is_online BOOLEAN, tags TEXT[],
-  organizer TEXT, cover_image_url TEXT, status TEXT,
-  latitude NUMERIC, longitude NUMERIC, prize_pool TEXT,
-  is_featured BOOLEAN, is_verified BOOLEAN, registration_deadline DATE,
-  avg_rating NUMERIC, save_count INT, base_score NUMERIC
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    h.id, h.title, h.start_date, h.end_date,
-    h.location_city, h.is_online, h.tags,
-    h.organizer, h.cover_image_url, h.status,
-    h.latitude, h.longitude, h.prize_pool,
-    h.is_featured, h.is_verified, h.registration_deadline,
-    h.avg_rating, h.save_count, h.base_score
-  FROM hackathons h
-  WHERE 
-    (h.status = 'approved' OR h.lifecycle_state = 'published')
-    AND h.is_archived = FALSE
-    AND h.geo_point IS NOT NULL
-    AND ST_Within(
-      h.geo_point::GEOMETRY,
-      ST_MakeEnvelope(west, south, east, north, 4326)
-    )
-  LIMIT 500;
+        + CASE WHEN h.is_featured THEN 15 ELSE 0 END
+
+        + CASE 
+            WHEN h.registration_deadline IS NOT NULL THEN
+              GREATEST(0, 10 - GREATEST(0, EXTRACT(DAY FROM (h.registration_deadline - CURRENT_DATE))))
+            ELSE 0
+          END
+
+        + GREATEST(0, 10 - EXTRACT(DAY FROM (CURRENT_DATE - h.created_at::DATE)) * 0.1)
+      ) AS relevance_score,
+      
+      -- Distance calculation via PostGIS geography
+      CASE 
+        WHEN p_user_lat IS NOT NULL AND h.geo_point IS NOT NULL THEN
+          ROUND((ST_Distance(
+            h.geo_point,
+            ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::GEOGRAPHY
+          ) / 1000)::NUMERIC, 1)
+        ELSE NULL
+      END AS distance_km,
+      
+      -- Days until deadline
+      CASE WHEN h.registration_deadline IS NOT NULL THEN
+        EXTRACT(DAY FROM (h.registration_deadline - CURRENT_DATE))::INT
+      ELSE NULL END AS days_until_deadline
+
+    FROM hackathons h
+    WHERE
+      h.status = 'approved'
+      
+      -- Text search with trigram fallback
+      AND (
+        p_query IS NULL OR p_query = ''
+        OR h.search_vector @@ plainto_tsquery('english', p_query)
+        OR similarity(h.title, p_query) > 0.15
+        OR similarity(h.organizer, p_query) > 0.2
+        OR similarity(COALESCE(h.location_city, ''), p_query) > 0.2
+        OR h.tags && ARRAY[p_query]
+      )
+      
+      -- Tag filter
+      AND (p_tags IS NULL OR h.tags && p_tags)
+      
+      -- Online filter
+      AND (p_is_online IS NULL OR h.is_online = p_is_online)
+      
+      -- Difficulty filter
+      AND (p_difficulty IS NULL OR h.difficulty = p_difficulty)
+      
+      -- Prize filter
+      AND (p_prize_min IS NULL OR h.prize_amount >= p_prize_min)
+      
+      -- City filter
+      AND (p_city IS NULL OR similarity(COALESCE(h.location_city,''), p_city) > 0.3)
+      
+      -- Date range
+      AND (p_start_after IS NULL OR h.start_date >= p_start_after)
+      AND (p_start_before IS NULL OR h.start_date <= p_start_before)
+      
+      -- Radius filter
+      AND (
+        p_radius_km IS NULL OR p_user_lat IS NULL OR h.geo_point IS NULL
+        OR ST_DWithin(
+          h.geo_point,
+          ST_SetSRID(ST_MakePoint(p_user_lng, p_user_lat), 4326)::GEOGRAPHY,
+          p_radius_km * 1000
+        )
+      )
+      
+      -- Status filter
+      AND (
+        p_status_filter IS NULL OR p_status_filter = 'all'
+        OR (p_status_filter = 'open' AND 
+            (h.registration_deadline IS NULL OR h.registration_deadline >= CURRENT_DATE))
+        OR (p_status_filter = 'closing_soon' AND 
+            h.registration_deadline BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '3 days')
+        OR (p_status_filter = 'closed' AND 
+            h.registration_deadline < CURRENT_DATE)
+      )
+  )
+  SELECT
+    s.id, s.title, s.description, s.start_date, s.end_date,
+    s.registration_deadline, s.location_city, s.location_college,
+    s.is_online, s.tags, s.register_url, s.organizer, s.cover_image_url,
+    s.status, s.latitude, s.longitude, s.prize_pool, s.prize_amount,
+    s.difficulty, s.is_featured, s.avg_rating, s.review_count,
+    s.save_count, s.view_count, s.relevance_score, s.distance_km,
+    s.days_until_deadline
+  FROM scored s
+  ORDER BY s.relevance_score DESC, s.start_date ASC
+  LIMIT p_limit OFFSET p_offset;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

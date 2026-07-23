@@ -8,7 +8,6 @@ import HackathonCard from '@/components/HackathonCard';
 import MapMarkerPreview from '@/components/MapMarkerPreview';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
-import { discoveryEngine } from '@/lib/discovery-engine';
 import { storageService } from '@/lib/storage-service';
 import { Hackathon } from '@/lib/supabase';
 import {
@@ -31,10 +30,10 @@ import {
   ExternalLink,
   SlidersHorizontal,
   Crosshair,
-  Layers,
   Clock,
   Flame,
-  Sparkles
+  Sparkles,
+  Filter
 } from 'lucide-react';
 
 // Dynamic SSR-disabled Leaflet Components
@@ -48,6 +47,8 @@ const CATEGORY_TAGS = [
   'Blockchain', 'Data Science', 'Game Dev', 'Open Source', 'Robotics'
 ];
 
+import { useDiscovery } from '@/hooks/useDiscovery';
+
 function DiscoveryPlatformContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -56,10 +57,6 @@ function DiscoveryPlatformContent() {
 
   // Leaflet ESM Module Instance
   const [L, setL] = useState<typeof import('leaflet') | null>(null);
-
-  // Primary Data & View State
-  const [hackathons, setHackathons] = useState<MapHackathon[]>([]);
-  // Lazy state initializers reading from URL searchParams
   const [viewMode, setViewMode] = useState<'map' | 'list' | 'calendar'>(() => {
     const qView = searchParams.get('view');
     return (qView === 'list' || qView === 'calendar') ? qView : 'map';
@@ -72,10 +69,11 @@ function DiscoveryPlatformContent() {
     prizeMin: Number(searchParams.get('prizeMin') || 0),
     status: (searchParams.get('status') as 'all' | 'open' | 'closing_soon' | 'closed') || 'all'
   }));
+
   const [selectedHackathon, setSelectedHackathon] = useState<MapHackathon | null>(null);
   const [hoveredHackathon, setHoveredHackathon] = useState<MapHackathon | null>(null);
   const [previewPos, setPreviewPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>(() => storageService.getSavedIds());
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -95,25 +93,23 @@ function DiscoveryPlatformContent() {
     import('leaflet').then(m => setL(m));
   }, []);
 
-  // Load Hackathons via Unified Discovery Engine & Centralized Storage Service
-  useEffect(() => {
-    async function loadData() {
-      const data = await discoveryEngine.discover();
-      setHackathons(data);
-      setSavedIds(storageService.getSavedIds());
+  // Single Source of Truth Discovery Hook
+  const { results: hackathonResults } = useDiscovery({ autoFetch: true, source: 'map' });
 
-      // Selected hackathon via URL ID parameter if present
-      const targetId = searchParams.get('id');
-      if (targetId) {
-        const found = data.find(item => item.id === targetId);
-        if (found) {
-          setSelectedHackathon(found);
+  const hackathons = hackathonResults as unknown as MapHackathon[];
+
+  useEffect(() => {
+    const targetId = searchParams.get('id');
+    if (targetId && hackathonResults.length > 0) {
+      const found = hackathonResults.find(item => item.id === targetId);
+      if (found) {
+        Promise.resolve().then(() => {
+          setSelectedHackathon(found as unknown as MapHackathon);
           setBottomSheetOpen(true);
-        }
+        });
       }
     }
-    loadData();
-  }, [searchParams]);
+  }, [searchParams, hackathonResults]);
 
   // Update URL Search Parameters whenever filters change
   const updateUrlParams = (newFilters: typeof filters, newView: string, selectedId?: string | null) => {
@@ -332,24 +328,111 @@ function DiscoveryPlatformContent() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#060816] text-[#F6F8FC] overflow-hidden selection:bg-purple-600 selection:text-white">
+    <div className="fixed inset-0 h-screen w-screen bg-[#060816] text-[#F6F8FC] overflow-hidden select-none">
 
-      {/* TOP BAR NAVIGATION */}
-      <header className="h-14 bg-[#0D1224]/90 backdrop-blur-xl border-b border-purple-500/20 px-4 sm:px-6 flex items-center justify-between gap-4 z-50 shrink-0">
-        <div className="flex items-center gap-3">
+      {/* 1. FULL SCREEN MAP CANVAS (Hero Visual Layer) */}
+      <div className="absolute inset-0 h-full w-full z-0">
+        <MapContainer
+          center={[20.5937, 78.9629]}
+          zoom={5}
+          ref={mapRef}
+          style={{ height: '100%', width: '100%', backgroundColor: '#060816' }}
+          zoomControl={false}
+        >
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+          />
+
+          {userLocation && radiusKm && (
+            <Circle
+              center={[userLocation.lat, userLocation.lng]}
+              radius={radiusKm * 1000}
+              pathOptions={{
+                color: '#8B5CF6',
+                fillColor: '#8B5CF6',
+                fillOpacity: 0.08,
+                weight: 1.5,
+                dashArray: '6,6'
+              }}
+            />
+          )}
+
+          {clusters.map((cluster, idx) => {
+            if (cluster.count > 1) {
+              return (
+                <Marker
+                  key={`cluster-${idx}`}
+                  position={[cluster.lat, cluster.lng]}
+                  icon={createClusterDivIcon(cluster.count)}
+                  eventHandlers={{
+                    click: () => {
+                      if (mapRef.current) {
+                        mapRef.current.flyTo([cluster.lat, cluster.lng], 9, { duration: 1 });
+                      }
+                    }
+                  }}
+                />
+              );
+            }
+
+            const hackathon = cluster.hackathons[0];
+            if (!hackathon || !hackathon.latitude || !hackathon.longitude) return null;
+
+            return (
+              <Marker
+                key={hackathon.id}
+                position={[hackathon.latitude, hackathon.longitude]}
+                icon={createDivIcon(hackathon)}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedHackathon(hackathon);
+                    setBottomSheetOpen(true);
+                    updateUrlParams(filters, viewMode, hackathon.id);
+                  },
+                  mouseover: (e) => {
+                    setHoveredHackathon(hackathon);
+                    setPreviewPos({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
+                  },
+                  mouseout: () => {
+                    setHoveredHackathon(null);
+                  }
+                }}
+              />
+            );
+          })}
+        </MapContainer>
+
+        {hoveredHackathon && (
+          <MapMarkerPreview
+            hackathon={hoveredHackathon}
+            x={previewPos.x}
+            y={previewPos.y}
+            visible={Boolean(hoveredHackathon)}
+          />
+        )}
+      </div>
+
+      {/* 2. FLOATING TOP NAVIGATION BAR (Apple Maps / Arc Browser / Linear Style) */}
+      <header className="fixed top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 md:left-6 md:right-6 lg:left-8 lg:right-8 z-40 bg-[#0D1224]/80 backdrop-blur-2xl border border-purple-500/30 rounded-2xl sm:rounded-3xl px-3 sm:px-5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(139,92,246,0.15)] flex items-center justify-between gap-3">
+        
+        {/* Left: Brand Branding */}
+        <div className="flex items-center gap-3 shrink-0">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="text-purple-400 group-hover:rotate-12 transition-transform text-lg">✦</span>
-            <span className="text-base font-extrabold tracking-tight text-white">
+            <span className="text-sm sm:text-base font-extrabold tracking-tight text-white">
               Find<span className="text-gradient">athon</span>
             </span>
           </Link>
-          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-500/40">
-            <MapIcon className="w-3 h-3" /> Discovery Map
+          <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40">
+            <MapIcon className="w-3 h-3" /> Map Engine
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center p-1 rounded-full glass-card border border-purple-900/40">
+        {/* Center: View Switcher & Search Bar */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* View Mode Switcher Pill */}
+          <div className="flex items-center p-1 rounded-full bg-slate-950/80 border border-purple-900/40 shadow-inner">
             <button
               onClick={() => handleViewModeChange('map')}
               className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
@@ -376,14 +459,15 @@ function DiscoveryPlatformContent() {
             </button>
           </div>
 
-          <div className="relative hidden md:flex items-center w-64">
+          {/* Quick Search Input */}
+          <div className="relative hidden md:flex items-center w-56 lg:w-72">
             <Search className="absolute left-3 w-4 h-4 text-purple-400 pointer-events-none" />
             <input
               type="text"
               value={filters.search}
               onChange={(e) => handleFilterChange(prev => ({ ...prev, search: e.target.value }))}
               placeholder="Search hackathons, cities..."
-              className="w-full pl-9 pr-8 py-1.5 rounded-full bg-slate-950/80 border border-purple-900/40 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full pl-9 pr-8 py-1.5 rounded-full bg-slate-950/80 border border-purple-900/40 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-inner"
             />
             {filters.search && (
               <button onClick={() => handleFilterChange(prev => ({ ...prev, search: '' }))} className="absolute right-2.5 text-slate-400 hover:text-white">
@@ -393,15 +477,16 @@ function DiscoveryPlatformContent() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Right: Geolocation & Stats */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="hidden lg:flex items-center gap-3 text-xs font-mono-num font-bold">
-            <span className="text-emerald-400 flex items-center gap-1">
+            <span className="text-emerald-400 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/50 border border-emerald-500/30">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               {stats.total} Live
             </span>
-            <span className="text-amber-400 flex items-center gap-1">
+            <span className="text-amber-400 flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-950/50 border border-amber-500/30">
               <Flame className="w-3.5 h-3.5" />
-              {stats.closingToday} Closing Soon
+              {stats.closingToday} Urgent
             </span>
           </div>
 
@@ -409,287 +494,183 @@ function DiscoveryPlatformContent() {
             onClick={handleLocateMe}
             disabled={locating}
             title="Locate me"
-            className="p-2 rounded-full glass-card border border-purple-500/30 text-purple-300 hover:text-white hover:bg-purple-600/30 transition-all"
+            className="p-2 rounded-full bg-slate-950/80 border border-purple-500/40 text-purple-300 hover:text-white hover:bg-purple-600/30 transition-all shadow-md"
           >
             <Crosshair className={`w-4 h-4 ${locating ? 'animate-spin text-cyan-400' : ''}`} />
           </button>
 
           <button
             onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-            className="md:hidden p-2 rounded-full glass-card border border-purple-500/30 text-slate-300"
+            className="md:hidden p-2 rounded-full bg-slate-950/80 border border-purple-500/40 text-slate-300 hover:text-white"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* MAIN BODY AREA */}
-      <div className="flex-1 flex relative overflow-hidden">
+      {/* 3. FLOATING LEFT CONTROL SIDEBAR (Aligned seamlessly with Top Bar) */}
+      <aside className="fixed top-20 left-3 sm:top-20 sm:left-4 md:left-6 lg:left-8 bottom-6 z-30 w-72 sm:w-80 md:w-84 max-h-[calc(100vh-6rem)] hidden md:flex flex-col bg-[#0D1224]/85 backdrop-blur-2xl border border-purple-500/30 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(139,92,246,0.15)] overflow-hidden transition-all duration-300">
         
-        {/* LEFT SIDEBAR FILTERS & LIST */}
-        <aside className="w-72 bg-[#060816]/90 backdrop-blur-xl border-r border-purple-900/30 hidden md:flex flex-col z-20 shrink-0 overflow-y-auto scrollbar-none">
-          
-          <div className="p-4 border-b border-purple-900/20 space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-purple-400" /> Map Legend
+        {/* Sidebar Header & Legend */}
+        <div className="p-4 border-b border-purple-900/30 space-y-2 bg-slate-950/40 shrink-0">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-purple-400" /> Discovery Controls
             </h4>
-            <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-slate-300">
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#00FFA3]" /> Open</div>
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" /> Closing Soon</div>
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CC9F0]" /> Online</div>
-              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6]" /> Featured</div>
+            <span className="text-[10px] font-bold text-purple-400 font-mono-num px-2 py-0.5 rounded-full bg-purple-950/80 border border-purple-500/30">
+              {filteredHackathons.length} Events
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-slate-300 pt-1">
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#00FFA3]" /> Open</div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" /> Closing Soon</div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CC9F0]" /> Online</div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6]" /> Featured</div>
+          </div>
+        </div>
+
+        {/* Filter Controls Panel */}
+        <div className="p-4 space-y-4 border-b border-purple-900/30 shrink-0 bg-slate-950/20">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status</label>
+            <div className="flex flex-wrap gap-1">
+              {(['all', 'open', 'closing_soon', 'closed'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => handleFilterChange(prev => ({ ...prev, status: st }))}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize border transition-all ${
+                    filters.status === st
+                      ? 'bg-purple-600 text-white border-purple-400 shadow-md'
+                      : 'bg-slate-950/60 text-slate-400 border-purple-900/30 hover:text-white'
+                  }`}
+                >
+                  {st.replace('_', ' ')}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="p-4 space-y-4 border-b border-purple-900/20">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status</label>
-              <div className="flex flex-wrap gap-1">
-                {(['all', 'open', 'closing_soon', 'closed'] as const).map((st) => (
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category Tags</label>
+            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto scrollbar-none">
+              {CATEGORY_TAGS.map((tag) => {
+                const selected = filters.tags.includes(tag);
+                return (
                   <button
-                    key={st}
-                    onClick={() => handleFilterChange(prev => ({ ...prev, status: st }))}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize border transition-all ${
-                      filters.status === st
+                    key={tag}
+                    onClick={() => {
+                      handleFilterChange(prev => ({
+                        ...prev,
+                        tags: selected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
+                      }));
+                    }}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
+                      selected
                         ? 'bg-purple-600 text-white border-purple-400'
-                        : 'glass-card text-slate-400 border-purple-900/30 hover:text-white'
+                        : 'bg-slate-950/60 text-slate-400 border-purple-900/30 hover:text-white'
                     }`}
                   >
-                    {st.replace('_', ' ')}
+                    #{tag}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category Tags</label>
-              <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto scrollbar-none">
-                {CATEGORY_TAGS.map((tag) => {
-                  const selected = filters.tags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => {
-                        handleFilterChange(prev => ({
-                          ...prev,
-                          tags: selected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
-                        }));
-                      }}
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
-                        selected
-                          ? 'bg-purple-600 text-white border-purple-400'
-                          : 'glass-card text-slate-400 border-purple-900/30 hover:text-white'
-                      }`}
-                    >
-                      #{tag}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold">
+              <span className="text-slate-400 uppercase tracking-wider">Min Prize Pool</span>
+              <span className="text-amber-300 font-mono-num">
+                {filters.prizeMin > 0 ? `₹${filters.prizeMin.toLocaleString()}+` : 'Any'}
+              </span>
             </div>
+            <input
+              type="range"
+              min={0}
+              max={500000}
+              step={10000}
+              value={filters.prizeMin}
+              onChange={(e) => handleFilterChange(prev => ({ ...prev, prizeMin: Number(e.target.value) }))}
+              className="w-full accent-purple-500 bg-slate-900 rounded-lg h-1.5 cursor-pointer"
+            />
+          </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-semibold">
-                <span className="text-slate-400 uppercase tracking-wider">Min Prize Pool</span>
-                <span className="text-amber-300 font-mono-num">
-                  {filters.prizeMin > 0 ? `₹${filters.prizeMin.toLocaleString()}+` : 'Any'}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={500000}
-                step={10000}
-                value={filters.prizeMin}
-                onChange={(e) => handleFilterChange(prev => ({ ...prev, prizeMin: Number(e.target.value) }))}
-                className="w-full accent-purple-500 bg-slate-900 rounded-lg h-1.5 cursor-pointer"
-              />
-            </div>
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <span className="text-slate-300 font-medium">Online Events Only</span>
+            <button
+              onClick={() => handleFilterChange(prev => ({ ...prev, onlineOnly: !prev.onlineOnly }))}
+              className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
+                filters.onlineOnly ? 'bg-purple-600' : 'bg-slate-800'
+              }`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                filters.onlineOnly ? 'translate-x-4' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+        </div>
 
-            <div className="flex items-center justify-between pt-1 text-xs">
-              <span className="text-slate-300 font-medium">Online Events Only</span>
+        {/* Scrollable Ranked Hackathon Results List */}
+        <div className="flex-1 p-3 space-y-2 overflow-y-auto scrollbar-none">
+          {filteredHackathons.length > 0 ? (
+            filteredHackathons.map((h) => {
+              const isSelected = selectedHackathon?.id === h.id;
+              const status = getMarkerStatus(h);
+              const color = MARKER_COLORS[status];
+
+              return (
+                <div
+                  key={h.id}
+                  onClick={() => {
+                    setSelectedHackathon(h);
+                    setBottomSheetOpen(true);
+                    updateUrlParams(filters, viewMode, h.id);
+                    if (h.latitude && h.longitude && mapRef.current) {
+                      mapRef.current.flyTo([h.latitude, h.longitude], 12, { duration: 1 });
+                    }
+                  }}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer space-y-1 ${
+                    isSelected
+                      ? 'border-purple-500 bg-purple-950/60 shadow-lg'
+                      : 'border-purple-900/20 bg-slate-950/40 hover:border-purple-500/40 hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h5 className="text-xs font-bold text-white truncate">{h.title}</h5>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                    <span className="truncate">{h.is_online ? 'Online' : h.location_city || 'In-Person'}</span>
+                    {h.distance_km !== undefined && (
+                      <span className="ml-auto text-cyan-300 font-mono-num">{h.distance_km}km</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-8 text-center text-xs text-slate-400 space-y-2">
+              <p>No hackathons match criteria</p>
               <button
-                onClick={() => handleFilterChange(prev => ({ ...prev, onlineOnly: !prev.onlineOnly }))}
-                className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                  filters.onlineOnly ? 'bg-purple-600' : 'bg-slate-800'
-                }`}
+                onClick={() => handleFilterChange(() => ({ search: '', tags: [], onlineOnly: false, prizeMin: 0, status: 'all' }))}
+                className="px-3 py-1 rounded-lg bg-purple-600 text-white font-bold text-[11px]"
               >
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                  filters.onlineOnly ? 'translate-x-4' : 'translate-x-0'
-                }`} />
+                Reset Filters
               </button>
             </div>
-          </div>
-
-          <div className="flex-1 p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-              <span>Results ({filteredHackathons.length})</span>
-              {userLocation && <span className="text-[10px] text-cyan-400 font-mono-num">Near me (50km)</span>}
-            </div>
-
-            {filteredHackathons.length > 0 ? (
-              <div className="space-y-2">
-                {filteredHackathons.map((h) => {
-                  const isSelected = selectedHackathon?.id === h.id;
-                  const status = getMarkerStatus(h);
-                  const color = MARKER_COLORS[status];
-
-                  return (
-                    <div
-                      key={h.id}
-                      onClick={() => {
-                        setSelectedHackathon(h);
-                        setBottomSheetOpen(true);
-                        updateUrlParams(filters, viewMode, h.id);
-                        if (h.latitude && h.longitude && mapRef.current) {
-                          mapRef.current.flyTo([h.latitude, h.longitude], 12, { duration: 1 });
-                        }
-                      }}
-                      className={`p-3 rounded-xl glass-card border transition-all cursor-pointer space-y-1.5 ${
-                        isSelected
-                          ? 'border-purple-500 bg-purple-950/40 shadow-lg'
-                          : 'border-purple-900/20 hover:border-purple-500/40 hover:bg-slate-900/60'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <h5 className="text-xs font-bold text-white truncate">{h.title}</h5>
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                        <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
-                        <span className="truncate">{h.is_online ? 'Online' : h.location_city || 'In-Person'}</span>
-                        {h.distance_km !== undefined && (
-                          <span className="ml-auto text-cyan-300 font-mono-num">{h.distance_km}km</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-xs text-slate-400 space-y-2">
-                <p>No hackathons match criteria</p>
-                <button
-                  onClick={() => handleFilterChange(() => ({ search: '', tags: [], onlineOnly: false, prizeMin: 0, status: 'all', difficulty: '' }))}
-                  className="px-3 py-1 rounded-lg bg-purple-600 text-white font-bold text-[11px]"
-                >
-                  Reset Filters
-                </button>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* CENTER VIEWPORT CONTAINER */}
-        <main className="flex-1 relative h-full w-full">
-          {viewMode === 'map' && (
-            <div className="h-full w-full relative">
-              <MapContainer
-                center={[20.5937, 78.9629]}
-                zoom={5}
-                ref={mapRef}
-                style={{ height: '100%', width: '100%', backgroundColor: '#060816' }}
-                zoomControl={false}
-              >
-                <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-                />
-
-                {userLocation && radiusKm && (
-                  <Circle
-                    center={[userLocation.lat, userLocation.lng]}
-                    radius={radiusKm * 1000}
-                    pathOptions={{
-                      color: '#8B5CF6',
-                      fillColor: '#8B5CF6',
-                      fillOpacity: 0.08,
-                      weight: 1.5,
-                      dashArray: '6,6'
-                    }}
-                  />
-                )}
-
-                {clusters.map((cluster, idx) => {
-                  if (cluster.count > 1) {
-                    return (
-                      <Marker
-                        key={`cluster-${idx}`}
-                        position={[cluster.lat, cluster.lng]}
-                        icon={createClusterDivIcon(cluster.count)}
-                        eventHandlers={{
-                          click: () => {
-                            if (mapRef.current) {
-                              mapRef.current.flyTo([cluster.lat, cluster.lng], 9, { duration: 1 });
-                            }
-                          }
-                        }}
-                      />
-                    );
-                  }
-
-                  const hackathon = cluster.hackathons[0];
-                  if (!hackathon || !hackathon.latitude || !hackathon.longitude) return null;
-
-                  return (
-                    <Marker
-                      key={hackathon.id}
-                      position={[hackathon.latitude, hackathon.longitude]}
-                      icon={createDivIcon(hackathon)}
-                      eventHandlers={{
-                        click: () => {
-                          setSelectedHackathon(hackathon);
-                          setBottomSheetOpen(true);
-                          updateUrlParams(filters, viewMode, hackathon.id);
-                        },
-                        mouseover: (e) => {
-                          setHoveredHackathon(hackathon);
-                          setPreviewPos({ x: e.originalEvent.clientX, y: e.originalEvent.clientY });
-                        },
-                        mouseout: () => {
-                          setHoveredHackathon(null);
-                        }
-                      }}
-                    />
-                  );
-                })}
-              </MapContainer>
-
-              {hoveredHackathon && (
-                <MapMarkerPreview
-                  hackathon={hoveredHackathon}
-                  x={previewPos.x}
-                  y={previewPos.y}
-                  visible={Boolean(hoveredHackathon)}
-                />
-              )}
-
-              <div className="absolute bottom-4 left-4 right-4 sm:left-12 sm:right-12 z-30 glass-card rounded-2xl p-3 border border-purple-500/30 flex items-center justify-between gap-4 bg-[#0D1224]/90 backdrop-blur-md">
-                <span className="text-xs font-bold text-purple-300 shrink-0 flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-purple-400" /> Timeline:
-                </span>
-
-                <input
-                  type="range"
-                  min={7}
-                  max={180}
-                  step={7}
-                  value={timelineDays}
-                  onChange={(e) => setTimelineDays(Number(e.target.value))}
-                  className="w-full accent-purple-500 bg-slate-900 rounded-lg h-1.5 cursor-pointer"
-                />
-
-                <span className="text-xs font-bold text-slate-300 font-mono-num shrink-0">
-                  {timelineDays >= 180 ? 'All 6 Months' : `Next ${timelineDays} Days`}
-                </span>
-              </div>
-            </div>
           )}
+        </div>
+      </aside>
 
+      {/* 4. LIST & CALENDAR OVERLAY VIEWS */}
+      {viewMode !== 'map' && (
+        <div className="absolute inset-0 z-20 pt-20 pb-8 px-4 sm:px-8 max-w-7xl mx-auto h-full overflow-y-auto scrollbar-none bg-[#060816]/95 backdrop-blur-3xl">
           {viewMode === 'list' && (
-            <div className="h-full w-full overflow-y-auto p-6 space-y-6">
-              <div className="flex items-center justify-between">
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center justify-between border-b border-purple-900/30 pb-4">
                 <h3 className="text-xl font-black text-white">Ranked Discovery List</h3>
                 <span className="text-xs font-bold text-purple-400 font-mono-num">{filteredHackathons.length} hackathons</span>
               </div>
@@ -714,8 +695,8 @@ function DiscoveryPlatformContent() {
           )}
 
           {viewMode === 'calendar' && (
-            <div className="h-full w-full overflow-y-auto p-6 space-y-6">
-              <div className="flex items-center justify-between">
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center justify-between border-b border-purple-900/30 pb-4">
                 <h3 className="text-xl font-black text-white">Hackathon Event Calendar</h3>
                 <span className="text-xs font-bold text-purple-400 font-mono-num">July 2026</span>
               </div>
@@ -731,7 +712,7 @@ function DiscoveryPlatformContent() {
                   const dayEvents = filteredHackathons.filter(h => h.start_date.startsWith(dateStr));
 
                   return (
-                    <div key={dayNum} className="min-h-[90px] p-2 rounded-xl glass-card border border-purple-900/20 flex flex-col justify-between">
+                    <div key={dayNum} className="min-h-[90px] p-2 rounded-xl bg-slate-950/80 border border-purple-900/30 flex flex-col justify-between">
                       <span className="text-xs font-bold text-slate-400 font-mono-num">{dayNum}</span>
                       <div className="space-y-1">
                         {dayEvents.slice(0, 2).map((ev) => (
@@ -757,116 +738,219 @@ function DiscoveryPlatformContent() {
               </div>
             </div>
           )}
+        </div>
+      )}
 
-          {/* BOTTOM SHEET */}
-          {selectedHackathon && (
-            <div className={`absolute bottom-0 left-0 right-0 z-40 glass-card rounded-t-3xl border-t border-purple-500/40 bg-[#0D1224]/95 backdrop-blur-2xl transition-transform duration-300 shadow-2xl ${
-              bottomSheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%-4rem)]'
-            }`}>
-              <div
-                onClick={() => setBottomSheetOpen(!bottomSheetOpen)}
-                className="h-14 px-6 flex items-center justify-between cursor-pointer border-b border-purple-900/30"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-1 rounded-full bg-purple-500/50 mx-auto" />
-                  <span className="text-sm font-bold text-white truncate max-w-sm sm:max-w-md">
-                    {selectedHackathon.title}
-                  </span>
-                </div>
+      {/* 5. FLOATING BOTTOM TIMELINE CONTROLLER */}
+      {viewMode === 'map' && (
+        <div className="fixed bottom-4 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto sm:min-w-[460px] z-30 bg-[#0D1224]/90 backdrop-blur-2xl rounded-2xl sm:rounded-full px-5 py-2.5 border border-purple-500/30 shadow-2xl flex items-center justify-between gap-4">
+          <span className="text-xs font-bold text-purple-300 shrink-0 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-purple-400" /> Timeline:
+          </span>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleSave(selectedHackathon.id);
-                    }}
-                    className="p-2 rounded-full glass-card text-slate-300 hover:text-purple-300"
-                  >
-                    <Bookmark className={`w-4 h-4 ${savedIds.includes(selectedHackathon.id) ? 'fill-purple-500 text-purple-500' : ''}`} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedHackathon(null);
-                      updateUrlParams(filters, viewMode, null);
-                    }}
-                    className="p-1 rounded-full text-slate-400 hover:text-white"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+          <input
+            type="range"
+            min={7}
+            max={180}
+            step={7}
+            value={timelineDays}
+            onChange={(e) => setTimelineDays(Number(e.target.value))}
+            className="w-full accent-purple-500 bg-slate-900 rounded-lg h-1.5 cursor-pointer"
+          />
+
+          <span className="text-xs font-bold text-slate-300 font-mono-num shrink-0">
+            {timelineDays >= 180 ? 'All 6 Months' : `Next ${timelineDays} Days`}
+          </span>
+        </div>
+      )}
+
+      {/* 6. MOBILE DRAWER FILTER MODAL */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md md:hidden flex flex-col justify-end">
+          <div className="bg-[#0D1224] border-t border-purple-500/40 rounded-t-3xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-purple-900/30">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Filter className="w-4 h-4 text-purple-400" /> Filter Hackathons
+              </h3>
+              <button onClick={() => setMobileDrawerOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Search Query</label>
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange(prev => ({ ...prev, search: e.target.value }))}
+                  placeholder="Search hackathons, cities..."
+                  className="w-full px-4 py-2 rounded-xl bg-slate-950 border border-purple-900/40 text-xs text-white"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Status</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['all', 'open', 'closing_soon', 'closed'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => handleFilterChange(prev => ({ ...prev, status: st }))}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize border ${
+                        filters.status === st
+                          ? 'bg-purple-600 text-white border-purple-400'
+                          : 'bg-slate-950 text-slate-400 border-purple-900/40'
+                      }`}
+                    >
+                      {st.replace('_', ' ')}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {bottomSheetOpen && (
-                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-96 overflow-y-auto">
-                  <div className="space-y-3">
-                    <img
-                      src={selectedHackathon.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop'}
-                      alt={selectedHackathon.title}
-                      className="w-full h-36 rounded-2xl object-cover border border-purple-900/30"
-                    />
-                    <div className="flex items-center justify-between text-xs">
-                      {selectedHackathon.prize_pool && (
-                        <span className="px-3 py-1 rounded-full font-bold bg-amber-950/80 text-amber-300 border border-amber-500/40">
-                          🏆 {selectedHackathon.prize_pool}
-                        </span>
-                      )}
-                      <span className="px-3 py-1 rounded-full font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40">
-                        {selectedHackathon.is_online ? 'Online' : 'In-Person'}
-                      </span>
-                    </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Categories</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CATEGORY_TAGS.map((tag) => {
+                    const selected = filters.tags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          handleFilterChange(prev => ({
+                            ...prev,
+                            tags: selected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
+                          }));
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                          selected ? 'bg-purple-600 text-white border-purple-400' : 'bg-slate-950 text-slate-400 border-purple-900/40'
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setMobileDrawerOpen(false)}
+                className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-lg pt-3"
+              >
+                Apply Filters ({filteredHackathons.length} Results)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. BOTTOM DETAILS SHEET */}
+      {selectedHackathon && (
+        <div className={`fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-purple-500/40 bg-[#0D1224]/95 backdrop-blur-2xl transition-transform duration-300 shadow-2xl ${
+          bottomSheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%-4rem)]'
+        }`}>
+          <div
+            onClick={() => setBottomSheetOpen(!bottomSheetOpen)}
+            className="h-14 px-6 flex items-center justify-between cursor-pointer border-b border-purple-900/30"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-1 rounded-full bg-purple-500/50 mx-auto" />
+              <span className="text-sm font-bold text-white truncate max-w-sm sm:max-w-md">
+                {selectedHackathon.title}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleSave(selectedHackathon.id);
+                }}
+                className="p-2 rounded-full glass-card text-slate-300 hover:text-purple-300"
+              >
+                <Bookmark className={`w-4 h-4 ${savedIds.includes(selectedHackathon.id) ? 'fill-purple-500 text-purple-500' : ''}`} />
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedHackathon(null);
+                  updateUrlParams(filters, viewMode, null);
+                }}
+                className="p-1 rounded-full text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {bottomSheetOpen && (
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-96 overflow-y-auto">
+              <div className="space-y-3">
+                <img
+                  src={selectedHackathon.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop'}
+                  alt={selectedHackathon.title}
+                  className="w-full h-36 rounded-2xl object-cover border border-purple-900/30"
+                />
+                <div className="flex items-center justify-between text-xs">
+                  {selectedHackathon.prize_pool && (
+                    <span className="px-3 py-1 rounded-full font-bold bg-amber-950/80 text-amber-300 border border-amber-500/40">
+                      🏆 {selectedHackathon.prize_pool}
+                    </span>
+                  )}
+                  <span className="px-3 py-1 rounded-full font-bold bg-purple-950/80 text-purple-300 border border-purple-500/40">
+                    {selectedHackathon.is_online ? 'Online' : 'In-Person'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-4 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-purple-400">
+                    Organized by {selectedHackathon.organizer}
                   </div>
 
-                  <div className="md:col-span-2 space-y-4 flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold uppercase tracking-wider text-purple-400">
-                        Organized by {selectedHackathon.organizer}
-                      </div>
+                  <h3 className="text-xl font-black text-white">{selectedHackathon.title}</h3>
+                  <p className="text-xs text-slate-300 line-clamp-2">{selectedHackathon.description}</p>
 
-                      <h3 className="text-xl font-black text-white">{selectedHackathon.title}</h3>
-                      <p className="text-xs text-slate-300 line-clamp-2">{selectedHackathon.description}</p>
-
-                      <div className="flex flex-wrap gap-4 text-xs text-slate-300 pt-1 font-medium">
-                        <span>📅 {selectedHackathon.start_date} — {selectedHackathon.end_date}</span>
-                        <span>📍 {selectedHackathon.is_online ? 'Worldwide (Online)' : selectedHackathon.location_city}</span>
-                        <span>👥 Max Team: {selectedHackathon.participant_count || 4}</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-purple-900/30 flex flex-wrap items-center justify-between gap-3">
-                      <button
-                        onClick={() => handleFollowArea(selectedHackathon.location_city || 'City')}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold glass-card text-purple-300 hover:text-white flex items-center gap-1.5"
-                      >
-                        <Bell className="w-3.5 h-3.5" /> Follow City
-                      </button>
-
-                      <div className="flex items-center gap-3">
-                        <Link
-                          href={`/hackathons/${selectedHackathon.id}`}
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
-                        >
-                          View Details →
-                        </Link>
-                        <a
-                          href={selectedHackathon.register_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="aurora-border px-4 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1"
-                        >
-                          Register Now <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    </div>
+                  <div className="flex flex-wrap gap-4 text-xs text-slate-300 pt-1 font-medium">
+                    <span>📅 {selectedHackathon.start_date} — {selectedHackathon.end_date}</span>
+                    <span>📍 {selectedHackathon.is_online ? 'Worldwide (Online)' : selectedHackathon.location_city}</span>
+                    <span>👥 Max Team: {selectedHackathon.participant_count || 4}</span>
                   </div>
                 </div>
-              )}
+
+                <div className="pt-3 border-t border-purple-900/30 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    onClick={() => handleFollowArea(selectedHackathon.location_city || 'City')}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-950/80 border border-purple-500/40 text-purple-300 hover:text-white flex items-center gap-1.5"
+                  >
+                    <Bell className="w-3.5 h-3.5" /> Follow City
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/hackathons/${selectedHackathon.id}`}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
+                    >
+                      View Details →
+                    </Link>
+                    <a
+                      href={selectedHackathon.register_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="aurora-border px-4 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1"
+                    >
+                      Register Now <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
-        </main>
-      </div>
+        </div>
+      )}
 
       {toastMessage && (
-        <div className="fixed bottom-20 right-6 z-50 px-4 py-2.5 rounded-2xl glass-card border border-purple-500/50 bg-[#0D1224]/95 text-xs font-bold text-purple-200 shadow-2xl animate-fade-in flex items-center gap-2">
+        <div className="fixed bottom-20 right-6 z-50 px-4 py-2.5 rounded-2xl border border-purple-500/50 bg-[#0D1224]/95 text-xs font-bold text-purple-200 shadow-2xl animate-fade-in flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-cyan-400" />
           <span>{toastMessage}</span>
         </div>

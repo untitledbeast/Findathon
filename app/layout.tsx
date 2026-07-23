@@ -39,7 +39,7 @@ export default function RootLayout({
         <AuthProvider>
           <AuthModalProvider>
             <AuroraBackground />
-            <div className="relative z-10 min-h-screen flex flex-col pt-20">
+            <div className="relative z-10 min-h-screen flex flex-col">
               {children}
             </div>
           </AuthModalProvider>
