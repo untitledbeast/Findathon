@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchHackathons, Hackathon } from '@/lib/supabase';
-import { Search, X, Globe, MapPin, Sparkles, ArrowRight, Command, Trophy, Calendar } from 'lucide-react';
+import { discoveryEngine } from '@/lib/discovery-engine';
+import { HackathonDTO } from '@/lib/dto';
+import { Search, X, MapPin, Sparkles, ArrowRight, Command } from 'lucide-react';
 
 interface SpotlightContextType {
   isOpen: boolean;
@@ -62,26 +63,24 @@ export default function SpotlightSearchModal({ isOpen, onClose }: SpotlightModal
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [query, setQuery] = useState('');
-  const [allHackathons, setAllHackathons] = useState<Hackathon[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [allHackathons, setAllHackathons] = useState<HackathonDTO[]>([]);
+  const [rawSelectedIndex, setSelectedIndex] = useState(0);
 
-  // Load hackathons list on mount
+  // Load hackathons list on mount via Discovery Engine
   useEffect(() => {
-    fetchHackathons().then(data => setAllHackathons(data));
+    discoveryEngine.discover().then(data => setAllHackathons(data));
   }, []);
 
-  // Auto-focus input when opened & reset search query
+  // Auto-focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
 
   // Filter hackathons based on search query
   const filteredResults = React.useMemo(() => {
-    if (!query.trim()) return allHackathons.slice(0, 5); // Show top 5 when empty query
+    if (!query.trim()) return allHackathons.slice(0, 5);
 
     const q = query.toLowerCase().trim();
     return allHackathons.filter(h => {
@@ -94,12 +93,14 @@ export default function SpotlightSearchModal({ isOpen, onClose }: SpotlightModal
     }).slice(0, 6);
   }, [query, allHackathons]);
 
-  // Reset selected index when results change
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [filteredResults]);
+  // Safely clamp selected index without effect setState calls
+  const selectedIndex = Math.min(rawSelectedIndex, Math.max(0, filteredResults.length - 1));
 
-  // Handle Keyboard Arrow & Enter navigation
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    setSelectedIndex(0);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
@@ -130,7 +131,6 @@ export default function SpotlightSearchModal({ isOpen, onClose }: SpotlightModal
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        
         {/* TOP SEARCH INPUT BAR */}
         <div className="relative flex items-center">
           <Search className="absolute left-4 w-5 h-5 text-purple-400 pointer-events-none" />
@@ -138,107 +138,118 @@ export default function SpotlightSearchModal({ isOpen, onClose }: SpotlightModal
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             placeholder="Search hackathons, technologies, prizes..."
             className="w-full pl-12 pr-20 py-3.5 rounded-xl bg-slate-950/80 border border-purple-800/50 text-slate-100 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all font-medium"
           />
 
           <div className="absolute right-3 flex items-center gap-2">
-            {query ? (
+            {query && (
               <button
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('');
+                  setSelectedIndex(0);
+                }}
                 className="p-1 rounded-md text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
-            ) : (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-900 text-slate-400 border border-purple-900/40">
-                <Command className="w-3 h-3" /> K
-              </span>
             )}
+            <span className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded text-[10px] font-bold bg-slate-900 text-slate-400 border border-purple-900/40">
+              ESC
+            </span>
           </div>
         </div>
 
-        {/* POPULAR CATEGORY CHIPS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          <span className="text-slate-400 font-semibold uppercase tracking-wider text-[10px] shrink-0 mr-1">
-            Popular:
-          </span>
-          {POPULAR_CHIPS.map((chip) => (
-            <button
-              key={chip}
-              onClick={() => setQuery(chip)}
-              className="px-3 py-1 rounded-full bg-slate-900/80 hover:bg-purple-950/80 text-purple-300 border border-purple-900/40 hover:border-purple-500/40 transition-all shrink-0 font-medium"
-            >
-              #{chip}
-            </button>
-          ))}
-        </div>
+        {/* POPULAR SEARCH QUICK CHIPS */}
+        {!query && (
+          <div className="space-y-2 pt-1">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Popular Searches
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {POPULAR_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => {
+                    setQuery(chip);
+                    setSelectedIndex(0);
+                  }}
+                  className="px-3 py-1 rounded-lg text-xs font-semibold glass-card text-slate-300 hover:text-white hover:border-purple-500/50 border border-purple-900/30 transition-all"
+                >
+                  #{chip}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* RESULTS LIST */}
-        <div className="space-y-1.5 pt-1 max-h-80 overflow-y-auto">
+        {/* SEARCH RESULTS LIST */}
+        <div className="space-y-2 max-h-80 overflow-y-auto pt-2 scrollbar-none">
           {filteredResults.length > 0 ? (
-            filteredResults.map((item, idx) => {
+            filteredResults.map((hackathon, idx) => {
               const isSelected = idx === selectedIndex;
               return (
                 <div
-                  key={item.id}
+                  key={hackathon.id}
                   onClick={() => {
-                    router.push(`/hackathons/${item.id}`);
+                    router.push(`/hackathons/${hackathon.id}`);
                     onClose();
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 border ${
+                  className={`p-3.5 rounded-xl transition-all cursor-pointer border flex items-center justify-between gap-4 ${
                     isSelected
-                      ? 'bg-purple-950/70 border-purple-500/50 shadow-md translate-x-1'
-                      : 'bg-slate-950/50 border-purple-900/20 hover:bg-slate-900/80'
+                      ? 'bg-purple-900/40 border-purple-500/60 text-white shadow-lg translate-x-1'
+                      : 'bg-slate-950/40 border-purple-900/20 text-slate-300 hover:bg-slate-900/60'
                   }`}
                 >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${
-                      item.is_online
-                        ? 'bg-purple-950/80 text-purple-300 border-purple-500/30'
-                        : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30'
-                    }`}>
-                      {item.is_online ? <Globe className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+                  <div className="space-y-1 overflow-hidden">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-purple-400 truncate">{hackathon.organizer}</span>
+                      <span className={`px-2 py-0.2 rounded-full text-[10px] font-semibold border ${
+                        hackathon.is_online
+                          ? 'bg-purple-950/80 text-purple-300 border-purple-500/40'
+                          : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        {hackathon.is_online ? 'Online' : 'In-Person'}
+                      </span>
                     </div>
 
-                    <div className="overflow-hidden">
-                      <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-purple-300">
-                        {item.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 truncate">
-                        {item.is_online ? 'Worldwide Online' : `${item.location_city || 'City'} • ${item.location_college || 'Campus'}`}
-                      </p>
+                    <h4 className="text-sm font-bold text-slate-100 truncate">{hackathon.title}</h4>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-purple-400" />
+                        {hackathon.is_online ? 'Worldwide' : hackathon.location_city || 'In-Person'}
+                      </span>
+                      {hackathon.prize_pool && (
+                        <span className="text-amber-300 font-semibold">{hackathon.prize_pool}</span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.tags && item.tags[0] && (
-                      <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-900/40 text-purple-300 border border-purple-800/40">
-                        #{item.tags[0]}
-                      </span>
-                    )}
-                    <ArrowRight className={`w-4 h-4 ${isSelected ? 'text-purple-300' : 'text-slate-600'}`} />
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform ${
+                    isSelected ? 'bg-purple-600 text-white scale-110' : 'bg-slate-900 text-slate-500'
+                  }`}>
+                    <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
               );
             })
           ) : (
-            <div className="py-8 text-center text-slate-400 space-y-2">
-              <Sparkles className="w-6 h-6 mx-auto text-purple-400" />
-              <p className="text-xs font-semibold">No hackathons matching &quot;{query}&quot;</p>
+            <div className="py-8 text-center space-y-2 text-slate-400">
+              <Search className="w-8 h-8 mx-auto text-purple-500/50" />
+              <p className="text-sm">No hackathons match &quot;{query}&quot;</p>
             </div>
           )}
         </div>
 
         {/* FOOTER SHORTCUT HINT */}
-        <div className="pt-2 border-t border-purple-900/20 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center gap-3">
-            <span><kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-purple-900/40 text-slate-300 font-mono">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-purple-900/40 text-slate-300 font-mono">↓</kbd> Navigate</span>
-            <span><kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-purple-900/40 text-slate-300 font-mono">↵</kbd> Select</span>
-          </div>
-          <span><kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-purple-900/40 text-slate-300 font-mono">ESC</kbd> Close</span>
+        <div className="pt-2 border-t border-purple-900/20 flex items-center justify-between text-xs text-slate-400">
+          <span className="flex items-center gap-1.5">
+            <Command className="w-3.5 h-3.5 text-purple-400" /> Navigate with arrow keys & Enter
+          </span>
+          <span>Findathon Engine</span>
         </div>
 
       </div>

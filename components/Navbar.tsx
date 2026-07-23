@@ -8,8 +8,6 @@ import { useAuthModal } from '@/components/AuthModal';
 import {
   Search,
   Sparkles,
-  PlusCircle,
-  Bookmark,
   User as UserIcon,
   LogOut,
   Menu,
@@ -114,6 +112,15 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
             }`}
           >
             Categories
+          </Link>
+          <Link
+            href="/map"
+            className={`transition-colors hover:text-white flex items-center gap-1 ${
+              pathname === '/map' ? 'text-cyan-400 font-bold' : 'text-purple-300 hover:text-white'
+            }`}
+          >
+            <span>Map</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
           </Link>
 
           {onOpenSaved && (

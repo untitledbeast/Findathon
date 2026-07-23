@@ -8,9 +8,10 @@ import Footer from '@/components/Footer';
 import CountdownTimer from '@/components/CountdownTimer';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
-import { fetchHackathonById, Hackathon } from '@/lib/supabase';
+import { discoveryEngine } from '@/lib/discovery-engine';
+import { storageService } from '@/lib/storage-service';
+import { Hackathon } from '@/lib/supabase';
 import {
-  Calendar,
   MapPin,
   Globe,
   Building2,
@@ -23,10 +24,7 @@ import {
   Trophy,
   Users,
   ShieldCheck,
-  Clock,
   Navigation,
-  Mail,
-  Phone,
   MessageSquare,
   UserCheck,
   DollarSign
@@ -64,20 +62,10 @@ export default function HackathonDetailPage() {
     async function loadDetail() {
       if (!id) return;
       setLoading(true);
-      const data = await fetchHackathonById(id);
-      setHackathon(data);
+      const data = await discoveryEngine.getById(id);
+      setHackathon(data as unknown as Hackathon);
       setLoading(false);
-
-      // Check local saved state
-      try {
-        const stored = localStorage.getItem('findathon_saved_ids');
-        if (stored) {
-          const ids: string[] = JSON.parse(stored);
-          setIsSaved(ids.includes(id));
-        }
-      } catch (e) {
-        console.error(e);
-      }
+      setIsSaved(storageService.isSaved(id));
     }
     loadDetail();
   }, [id]);
@@ -92,7 +80,7 @@ export default function HackathonDetailPage() {
           url: url
         });
         return;
-      } catch (e) {}
+      } catch {}
     }
 
     try {
@@ -111,20 +99,8 @@ export default function HackathonDetailPage() {
     }
 
     if (!id) return;
-    try {
-      const stored = localStorage.getItem('findathon_saved_ids');
-      let ids: string[] = stored ? JSON.parse(stored) : [];
-      if (ids.includes(id)) {
-        ids = ids.filter(item => item !== id);
-        setIsSaved(false);
-      } else {
-        ids.push(id);
-        setIsSaved(true);
-      }
-      localStorage.setItem('findathon_saved_ids', JSON.stringify(ids));
-    } catch (e) {
-      console.error(e);
-    }
+    const updated = storageService.toggleSavedId(id);
+    setIsSaved(updated.includes(id));
   };
 
   const formatDate = (dateStr?: string | null) => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Trophy, Globe, Code2, Heart } from 'lucide-react';
+import { Trophy, Heart } from 'lucide-react';
 
 export default function Footer() {
   return (

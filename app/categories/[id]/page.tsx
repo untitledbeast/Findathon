@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
 import { CATEGORIES, CategoryDef } from '../page';
-import { fetchHackathons, Hackathon } from '@/lib/supabase';
+import { discoveryEngine } from '@/lib/discovery-engine';
+import { storageService } from '@/lib/storage-service';
+import { Hackathon } from '@/lib/supabase';
 import {
   Brain,
   Boxes,
@@ -44,7 +46,6 @@ function CategoryIcon({ name, color, className = "w-10 h-10" }: { name: string; 
 
 export default function CategoryDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = (params?.id as string) || 'ai-ml';
 
   const category: CategoryDef = useMemo(() => {
@@ -60,45 +61,30 @@ export default function CategoryDetailPage() {
   useEffect(() => {
     async function loadCategoryHackathons() {
       setLoading(true);
-      const all = await fetchHackathons();
+      const all = await discoveryEngine.discover();
 
-      // Filter by category tags
       const filtered = all.filter(h => {
         return h.tags?.some(tag =>
           category.tags.some(ct => tag.toLowerCase().includes(ct.toLowerCase()))
         );
       });
 
-      // If database contains fewer than 2 results, combine with all data for a rich demonstration
       if (filtered.length === 0) {
-        setHackathons(all);
+        setHackathons(all as unknown as Hackathon[]);
       } else {
-        setHackathons(filtered);
+        setHackathons(filtered as unknown as Hackathon[]);
       }
 
+      setSavedIds(storageService.getSavedIds());
       setLoading(false);
     }
 
     loadCategoryHackathons();
-
-    try {
-      const stored = localStorage.getItem('findathon_saved_ids');
-      if (stored) setSavedIds(JSON.parse(stored));
-    } catch (e) {
-      console.error(e);
-    }
   }, [category]);
 
   const handleToggleSave = (hId: string) => {
-    setSavedIds(prev => {
-      const next = prev.includes(hId) ? prev.filter(item => item !== hId) : [...prev, hId];
-      try {
-        localStorage.setItem('findathon_saved_ids', JSON.stringify(next));
-      } catch (e) {
-        console.error(e);
-      }
-      return next;
-    });
+    const updated = storageService.toggleSavedId(hId);
+    setSavedIds(updated);
   };
 
   // Filter & Sort Logic

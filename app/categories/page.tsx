@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { supabase } from '@/lib/supabase';
+import { discoveryEngine } from '@/lib/discovery-engine';
 import {
   Brain,
   Boxes,
@@ -16,8 +16,7 @@ import {
   GitFork,
   Gamepad2,
   Code2,
-  Sparkles,
-  ArrowRight
+  Sparkles
 } from 'lucide-react';
 
 export interface CategoryDef {
@@ -181,28 +180,14 @@ export default function CategoriesPage() {
     async function loadCategoryCounts() {
       setLoading(true);
       const countsMap: Record<string, number> = {};
+      const all = await discoveryEngine.discover();
 
-      try {
-        if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
-          for (const cat of CATEGORIES) {
-            const { count, error } = await supabase
-              .from('hackathons')
-              .select('*', { count: 'exact', head: true })
-              .overlaps('tags', cat.tags);
-
-            const realCount = count || 0;
-            countsMap[cat.id] = Math.max(realCount, cat.fallbackCount);
-          }
-        } else {
-          CATEGORIES.forEach(cat => {
-            countsMap[cat.id] = cat.fallbackCount;
-          });
-        }
-      } catch (e) {
-        CATEGORIES.forEach(cat => {
-          countsMap[cat.id] = cat.fallbackCount;
-        });
-      }
+      CATEGORIES.forEach(cat => {
+        const count = all.filter(h =>
+          h.tags?.some(tag => cat.tags.some(ct => tag.toLowerCase().includes(ct.toLowerCase())))
+        ).length;
+        countsMap[cat.id] = Math.max(count, cat.fallbackCount);
+      });
 
       setCounts(countsMap);
       setLoading(false);

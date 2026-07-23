@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
 import { submitHackathon } from '@/lib/supabase';
+import { storageService } from '@/lib/storage-service';
 import {
   Sparkles,
   ArrowLeft,
@@ -17,12 +17,6 @@ import {
   Globe,
   MapPin,
   Building2,
-  Calendar,
-  Clock,
-  Users,
-  Trophy,
-  DollarSign,
-  Tag,
   Link2,
   Image as ImageIcon,
   Phone,
@@ -70,7 +64,6 @@ const ELIGIBILITY_OPTIONS = [
 ];
 
 export default function SubmitPage() {
-  const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   const { openAuthModal } = useAuthModal();
 
@@ -78,89 +71,51 @@ export default function SubmitPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    // Step 1
-    title: '',
-    tagline: '',
-    description: '',
-    cover_image_url: '',
-    tags: [] as string[],
-    domain: '',
-
-    // Step 2
-    start_date: '',
-    end_date: '',
-    registration_deadline: '',
-    mode: 'Online' as 'Online' | 'Offline' | 'Hybrid',
-    location_city: '',
-    location_college: '',
-    full_address: '',
-    prize_pool: '',
-    registration_fee: 'Free' as 'Free' | 'Paid',
-    registration_fee_amount: '',
-
-    // Step 3
-    solo_allowed: true,
-    min_team_size: 1,
-    max_team_size: 4,
-    eligibility: ['Open to All'] as string[],
-    requirements: '',
-    register_url: '',
-
-    // Step 4
-    contact_name: '',
-    organization: '',
-    contact_email: '',
-    contact_phone: '',
-    social_twitter: '',
-    social_linkedin: '',
-    social_discord: '',
-    social_instagram: '',
-    confirm_accurate: false,
-    confirm_contact: false
+  // Form State with Lazy Initializer from storageService draft
+  const [formData, setFormData] = useState(() => {
+    const draft = storageService.getSubmitDraft() || {};
+    return {
+      title: draft.title || '',
+      tagline: draft.tagline || '',
+      description: draft.description || '',
+      cover_image_url: draft.cover_image_url || '',
+      tags: draft.tags || [],
+      domain: draft.domain || '',
+      start_date: draft.start_date || '',
+      end_date: draft.end_date || '',
+      registration_deadline: draft.registration_deadline || '',
+      mode: draft.mode || 'Online',
+      location_city: draft.location_city || '',
+      location_college: draft.location_college || '',
+      full_address: draft.full_address || '',
+      prize_pool: draft.prize_pool || '',
+      registration_fee: draft.registration_fee || 'Free',
+      registration_fee_amount: draft.registration_fee_amount || '',
+      solo_allowed: draft.solo_allowed ?? true,
+      min_team_size: draft.min_team_size || 1,
+      max_team_size: draft.max_team_size || 4,
+      eligibility: draft.eligibility || ['Open to All'],
+      requirements: draft.requirements || '',
+      register_url: draft.register_url || '',
+      contact_name: draft.contact_name || '',
+      organization: draft.organization || '',
+      contact_email: draft.contact_email || '',
+      contact_phone: draft.contact_phone || '',
+      social_twitter: draft.social_twitter || '',
+      social_linkedin: draft.social_linkedin || '',
+      social_discord: draft.social_discord || '',
+      social_instagram: draft.social_instagram || '',
+      confirm_accurate: false,
+      confirm_contact: false
+    };
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Auto pre-fill contact details from profile when available
-  useEffect(() => {
-    if (profile || user) {
-      setFormData(prev => ({
-        ...prev,
-        contact_name: prev.contact_name || profile?.full_name || user?.user_metadata?.full_name || '',
-        organization: prev.organization || profile?.organization || '',
-        contact_email: prev.contact_email || user?.email || '',
-        contact_phone: prev.contact_phone || profile?.phone || '',
-        social_twitter: prev.social_twitter || profile?.social_twitter || '',
-        social_linkedin: prev.social_linkedin || profile?.social_linkedin || '',
-        social_discord: prev.social_discord || profile?.social_discord || '',
-        social_instagram: prev.social_instagram || profile?.social_instagram || ''
-      }));
-    }
-  }, [profile, user]);
-
-  // Load / Save localStorage Draft
-  useEffect(() => {
-    try {
-      const savedDraft = localStorage.getItem('findathon_submit_draft');
-      if (savedDraft) {
-        const parsed = JSON.parse(savedDraft);
-        setFormData(prev => ({ ...prev, ...parsed }));
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
   const updateFormData = (fields: Partial<typeof formData>) => {
     setFormData(prev => {
       const updated = { ...prev, ...fields };
-      try {
-        localStorage.setItem('findathon_submit_draft', JSON.stringify(updated));
-      } catch (e) {
-        console.error(e);
-      }
+      storageService.setSubmitDraft(updated);
       return updated;
     });
   };
@@ -312,9 +267,7 @@ export default function SubmitPage() {
 
     if (res.success) {
       setSubmittedSuccess(true);
-      try {
-        localStorage.removeItem('findathon_submit_draft');
-      } catch (e) {}
+      storageService.clearSubmitDraft();
     } else {
       setErrors({ submit: res.error || 'Failed to submit hackathon. Please try again.' });
     }

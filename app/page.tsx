@@ -6,21 +6,18 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
 import { SpotlightProvider, useSpotlight } from '@/components/SpotlightSearch';
-import { fetchHackathons, Hackathon } from '@/lib/supabase';
+import { discoveryEngine } from '@/lib/discovery-engine';
+import { storageService } from '@/lib/storage-service';
+import { Hackathon } from '@/lib/supabase';
 import {
   Search,
   Filter,
   Sparkles,
   Globe,
   MapPin,
-  X,
   Bookmark,
-  Trophy,
   ArrowRight,
-  Command,
-  TrendingUp,
-  Users,
-  DollarSign
+  Command
 } from 'lucide-react';
 
 const CATEGORY_CHIPS = [
@@ -165,6 +162,17 @@ function HeroContent() {
           </div>
         </div>
 
+        {/* MAP CTA BUTTON */}
+        <div className="pt-2 flex justify-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+          <Link
+            href="/map"
+            className="aurora-border px-6 py-2.5 rounded-full text-xs font-bold text-white shadow-xl hover:scale-105 transition-all flex items-center gap-2"
+          >
+            <MapPin className="w-4 h-4 text-cyan-400 animate-bounce" />
+            <span>Explore Interactive Map Platform →</span>
+          </Link>
+        </div>
+
         {/* CATEGORY CHIPS ROW */}
         <div className="pt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
           {CATEGORY_CHIPS.map((chip, idx) => (
@@ -242,32 +250,17 @@ export default function HomePage() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
-      const data = await fetchHackathons();
-      setHackathons(data);
+      const data = await discoveryEngine.discover();
+      setHackathons(data as unknown as Hackathon[]);
+      setSavedIds(storageService.getSavedIds());
       setLoading(false);
     }
     loadData();
-
-    try {
-      const stored = localStorage.getItem('findathon_saved_ids');
-      if (stored) {
-        setSavedIds(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error(e);
-    }
   }, []);
 
   const handleToggleSave = (id: string) => {
-    setSavedIds(prev => {
-      const next = prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id];
-      try {
-        localStorage.setItem('findathon_saved_ids', JSON.stringify(next));
-      } catch (e) {
-        console.error(e);
-      }
-      return next;
-    });
+    const updated = storageService.toggleSavedId(id);
+    setSavedIds(updated);
   };
 
   // Filtering Logic

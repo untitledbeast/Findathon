@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState } from 'react';
-import { X, Trophy, Sparkles } from 'lucide-react';
+import { X, Trophy } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface AuthModalContextType {

@@ -285,8 +285,9 @@ export async function updateProfile(userId: string, profileData: Partial<Profile
     }
 
     return { success: true, data: data as Profile };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to update profile' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to update profile';
+    return { success: false, error: msg };
   }
 }
 
@@ -338,7 +339,7 @@ export async function getSession() {
   return await supabase.auth.getSession();
 }
 
-export async function submitHackathon(hackathonData: Partial<Hackathon>): Promise<{ success: boolean; data?: any; error?: string }> {
+export async function submitHackathon(hackathonData: Partial<Hackathon>): Promise<{ success: boolean; data?: Hackathon; error?: string }> {
   try {
     const payload = {
       ...hackathonData,
@@ -365,9 +366,10 @@ export async function submitHackathon(hackathonData: Partial<Hackathon>): Promis
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: data[0] };
-  } catch (err: any) {
+    return { success: true, data: data[0] as Hackathon };
+  } catch (err) {
     console.error('Submit hackathon exception:', err);
-    return { success: false, error: err.message || 'Failed to submit hackathon' };
+    const msg = err instanceof Error ? err.message : 'Failed to submit hackathon';
+    return { success: false, error: msg };
   }
 }

@@ -9,8 +9,8 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<any>;
-  signOut: () => Promise<any>;
+  signInWithGoogle: () => Promise<unknown>;
+  signOut: () => Promise<unknown>;
   refreshProfile: () => Promise<void>;
 }
 

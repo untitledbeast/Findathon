@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthModalProvider } from "@/components/AuthModal";
 import AuroraBackground from "@/components/AuroraBackground";

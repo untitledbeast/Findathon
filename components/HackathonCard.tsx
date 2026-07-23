@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Hackathon } from '@/lib/supabase';
 import { Calendar, MapPin, Globe, Bookmark, ExternalLink, Sparkles, Building2 } from 'lucide-react';
 

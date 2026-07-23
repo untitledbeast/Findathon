@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
-import { supabase, updateProfile, getUserHackathons, fetchHackathons, Hackathon } from '@/lib/supabase';
+import { discoveryEngine } from '@/lib/discovery-engine';
+import { storageService } from '@/lib/storage-service';
+import { updateProfile, getUserHackathons, Hackathon } from '@/lib/supabase';
 import {
   LayoutDashboard,
   User as UserIcon,
@@ -21,31 +23,22 @@ import {
   Send,
   ArrowRight,
   Camera,
-  Check,
   CheckCircle2,
   AlertCircle,
   X,
-  Building2,
-  Phone,
   Globe,
   Sparkles,
   PlusCircle,
   Calendar,
   MapPin,
-  ExternalLink,
   Loader2,
   Save,
   MessageSquare,
   ShieldCheck,
-  Trash2,
-  Lock,
   Award,
   Compass,
   Rocket,
   Zap,
-  ChevronRight,
-  Sliders,
-  Eye,
   Mail
 } from 'lucide-react';
 
@@ -170,26 +163,28 @@ function AccountDashboard() {
   const { openAuthModal } = useAuthModal();
 
   const tabParam = searchParams.get('tab') || 'dashboard';
-  const [activeTab, setActiveTab] = useState<string>(tabParam);
+  const [internalTab, setInternalTab] = useState<string | null>(null);
+  const activeTab = internalTab || tabParam;
 
-  useEffect(() => {
-    const t = searchParams.get('tab');
-    if (t) setActiveTab(t);
-    else setActiveTab('dashboard');
-  }, [searchParams]);
+  const setActiveTab = (tab: string) => {
+    setInternalTab(tab);
+    router.push(`/account?tab=${tab}`);
+  };
 
-  // Profile Form State
-  const [formData, setFormData] = useState({
-    full_name: '',
-    bio: '',
-    organization: '',
-    phone: '',
-    website: '',
-    social_twitter: '',
-    social_linkedin: '',
-    social_instagram: '',
-    social_discord: ''
-  });
+  // Profile Form State with derived defaults
+  const [rawFormData, setFormData] = useState<Record<string, string>>({});
+
+  const formData = useMemo(() => ({
+    full_name: rawFormData.full_name ?? profile?.full_name ?? '',
+    bio: rawFormData.bio ?? profile?.bio ?? '',
+    organization: rawFormData.organization ?? profile?.organization ?? '',
+    phone: rawFormData.phone ?? profile?.phone ?? '',
+    website: rawFormData.website ?? profile?.website ?? '',
+    social_twitter: rawFormData.social_twitter ?? profile?.social_twitter ?? '',
+    social_linkedin: rawFormData.social_linkedin ?? profile?.social_linkedin ?? '',
+    social_instagram: rawFormData.social_instagram ?? profile?.social_instagram ?? '',
+    social_discord: rawFormData.social_discord ?? profile?.social_discord ?? ''
+  }), [rawFormData, profile]);
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -198,7 +193,6 @@ function AccountDashboard() {
   const [userHackathons, setUserHackathons] = useState<Hackathon[]>([]);
   const [savedHackathons, setSavedHackathons] = useState<Hackathon[]>([]);
   const [allHackathons, setAllHackathons] = useState<Hackathon[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
 
   // Settings & Delete modal
   const [notificationsList, setNotificationsList] = useState(INITIAL_NOTIFICATIONS);
@@ -215,45 +209,20 @@ function AccountDashboard() {
     publicSubmissions: true
   });
 
-  // Sync profile data when loaded
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        full_name: profile.full_name || '',
-        bio: profile.bio || '',
-        organization: profile.organization || '',
-        phone: profile.phone || '',
-        website: profile.website || '',
-        social_twitter: profile.social_twitter || '',
-        social_linkedin: profile.social_linkedin || '',
-        social_instagram: profile.social_instagram || '',
-        social_discord: profile.social_discord || ''
-      });
-    }
-  }, [profile]);
-
-  // Load User Data from Supabase
+  // Load User Data via Discovery Engine & Storage Service
   useEffect(() => {
     async function loadDashboardData() {
-      setLoadingData(true);
-      const all = await fetchHackathons();
-      setAllHackathons(all);
+      const all = await discoveryEngine.discover();
+      setAllHackathons(all as unknown as Hackathon[]);
 
       if (user?.id) {
         const userSubs = await getUserHackathons(user.id);
         setUserHackathons(userSubs);
 
-        // Fetch saved hackathons
-        try {
-          const storedIds = localStorage.getItem('findathon_saved_ids');
-          const savedIdsArray: string[] = storedIds ? JSON.parse(storedIds) : [];
-          const savedItems = all.filter(h => savedIdsArray.includes(h.id));
-          setSavedHackathons(savedItems);
-        } catch (e) {
-          console.error(e);
-        }
+        const savedIdsArray = storageService.getSavedIds();
+        const savedItems = all.filter(h => savedIdsArray.includes(h.id));
+        setSavedHackathons(savedItems as unknown as Hackathon[]);
       }
-      setLoadingData(false);
     }
 
     loadDashboardData();
