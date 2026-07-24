@@ -1,3 +1,8 @@
+/**
+ * INERT INFRASTRUCTURE CONTRACT
+ * Reserved for feature flag runtime checks when dynamic feature toggling is implemented.
+ * Tracked in docs/architecture.md.
+ */
 import { IFeatureFlagProvider } from './feature-flag.provider.interface';
 
 export class LocalFeatureFlagProvider implements IFeatureFlagProvider {

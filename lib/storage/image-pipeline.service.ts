@@ -1,3 +1,8 @@
+/**
+ * INERT INFRASTRUCTURE CONTRACT
+ * Reserved for future image optimization & CDN pipelines when File Upload UX is implemented.
+ * Tracked in docs/architecture.md.
+ */
 export interface ImageVariants {
   original: string;
   thumbnail: string;

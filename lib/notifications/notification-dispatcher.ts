@@ -1,3 +1,8 @@
+/**
+ * INERT INFRASTRUCTURE CONTRACT
+ * Reserved for future notification triggers when Review Notifications & Organizers Alerts are built.
+ * Tracked in docs/architecture.md.
+ */
 import { supabase } from '@/lib/supabase';
 import { NotificationTemplatePayload } from './notification-template';
 

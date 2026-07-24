@@ -1,3 +1,8 @@
+/**
+ * INERT INFRASTRUCTURE CONTRACT
+ * Reserved for future domain event publishing when Reviews/Bookmarking domain events are implemented.
+ * Tracked in docs/architecture.md.
+ */
 import { DomainEvent } from './event-types';
 import { defaultQueueProvider, IEventQueueProvider } from './memory-queue.provider';
 
