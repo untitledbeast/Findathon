@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
@@ -90,7 +91,7 @@ export default function OrganizerDetailPage() {
         <div className="glass-card rounded-3xl overflow-hidden border border-purple-500/30 shadow-2xl relative">
           <div className="h-48 sm:h-56 w-full relative bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-950">
             {organizer.banner_url && (
-              <img src={organizer.banner_url} alt={organizer.name} className="w-full h-full object-cover" />
+              <Image src={organizer.banner_url} alt={organizer.name} fill priority sizes="100vw" className="object-cover" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#060816] via-transparent to-transparent" />
           </div>
@@ -98,9 +99,9 @@ export default function OrganizerDetailPage() {
           <div className="px-6 sm:px-8 pb-8 pt-0 relative space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-14 sm:-mt-16">
               <div className="flex items-end gap-4">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-purple-950 border-4 border-purple-500 shadow-2xl flex items-center justify-center text-3xl font-black text-purple-300 overflow-hidden shrink-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-purple-950 border-4 border-purple-500 shadow-2xl flex items-center justify-center text-3xl font-black text-purple-300 overflow-hidden shrink-0 relative">
                   {organizer.logo_url ? (
-                    <img src={organizer.logo_url} alt={organizer.name} className="w-full h-full object-cover" />
+                    <Image src={organizer.logo_url} alt={organizer.name} width={112} height={112} className="w-full h-full object-cover" />
                   ) : (
                     organizer.name.charAt(0)
                   )}

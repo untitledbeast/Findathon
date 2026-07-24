@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Hackathon } from '@/lib/supabase';
 import { Calendar, MapPin, Globe, Bookmark, ExternalLink, Sparkles, Building2 } from 'lucide-react';
 
@@ -44,11 +45,13 @@ export default function HackathonCard({ hackathon, isSaved = false, onToggleSave
       
       {/* Cover Image Container */}
       <div className="relative w-full h-48 overflow-hidden bg-slate-950">
-        <img
+        <Image
           src={coverUrl}
           alt={hackathon.title}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           onError={() => setImgError(true)}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent" />
 

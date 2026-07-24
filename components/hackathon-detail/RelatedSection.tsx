@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { RelatedHackathonDTO } from '@/lib/domain/dtos/hackathon.dto';
 import { Sparkles } from 'lucide-react';
 
@@ -24,9 +25,11 @@ export function RelatedSection({ related }: RelatedSectionProps) {
             href={`/hackathons/${r.id}`}
             className="glass-card rounded-2xl p-4 border border-purple-900/30 hover:border-purple-400 transition-all flex items-center gap-4 group"
           >
-            <img
+            <Image
               src={r.coverImageUrl || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=300&q=80'}
               alt={r.title}
+              width={64}
+              height={64}
               className="w-16 h-16 rounded-xl object-cover"
             />
             <div className="space-y-1 flex-1 min-w-0">

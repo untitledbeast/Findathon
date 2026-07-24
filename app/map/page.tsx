@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams, usePathname } from 'next/navigation';
 import HackathonCard from '@/components/HackathonCard';
 import MapMarkerPreview from '@/components/MapMarkerPreview';
@@ -885,11 +886,15 @@ function DiscoveryPlatformContent() {
           {bottomSheetOpen && (
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-96 overflow-y-auto">
               <div className="space-y-3">
-                <img
-                  src={selectedHackathon.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop'}
-                  alt={selectedHackathon.title}
-                  className="w-full h-36 rounded-2xl object-cover border border-purple-900/30"
-                />
+                <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-purple-900/30">
+                  <Image
+                    src={selectedHackathon.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop'}
+                    alt={selectedHackathon.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover"
+                  />
+                </div>
                 <div className="flex items-center justify-between text-xs">
                   {selectedHackathon.prize_pool && (
                     <span className="px-3 py-1 rounded-full font-bold bg-amber-950/80 text-amber-300 border border-amber-500/40">

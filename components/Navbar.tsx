@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
@@ -192,9 +193,11 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
                 className="flex items-center gap-1.5 p-1 rounded-full border border-purple-500/30 hover:border-purple-400 transition-all bg-slate-950/60"
               >
                 {avatarUrl ? (
-                  <img
+                  <Image
                     src={avatarUrl}
                     alt={userName}
+                    width={28}
+                    height={28}
                     className="w-7 h-7 rounded-full object-cover ring-1 ring-purple-400/40"
                   />
                 ) : (

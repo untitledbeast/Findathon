@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/lib/auth-context';
@@ -518,11 +519,13 @@ export default function SubmitPage() {
                 </div>
                 {formData.cover_image_url && (
                   <div className="mt-2 w-full h-36 rounded-2xl overflow-hidden bg-slate-950 border border-purple-900/40 relative">
-                    <img
+                    <Image
                       src={formData.cover_image_url}
                       alt="Preview thumbnail"
-                      className="w-full h-full object-cover"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                      fill
+                      sizes="100vw"
+                      className="object-cover"
+                      unoptimized
                     />
                   </div>
                 )}

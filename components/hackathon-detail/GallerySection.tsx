@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { MediaDTO } from '@/lib/domain/dtos/hackathon.dto';
 import { X } from 'lucide-react';
 
@@ -23,8 +24,14 @@ export function GallerySection({ media }: GallerySectionProps) {
             onClick={() => setLightboxImage(m.url)}
             className="h-36 rounded-2xl overflow-hidden cursor-pointer border border-purple-900/30 group relative"
           >
-            <img src={m.url} alt={m.caption || 'Event media'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-colors" />
+            <Image
+              src={m.url}
+              alt={m.caption || 'Event media'}
+              fill
+              sizes="(max-width: 640px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform"
+            />
+            <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-colors z-10" />
           </div>
         ))}
       </div>
@@ -34,11 +41,17 @@ export function GallerySection({ media }: GallerySectionProps) {
           onClick={() => setLightboxImage(null)}
           className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
         >
-          <div className="relative max-w-4xl w-full">
-            <img src={lightboxImage} alt="Enlarged gallery preview" className="w-full max-h-[85vh] object-contain rounded-2xl" />
+          <div className="relative max-w-4xl w-full h-[80vh]">
+            <Image
+              src={lightboxImage}
+              alt="Enlarged gallery preview"
+              fill
+              sizes="100vw"
+              className="object-contain rounded-2xl"
+            />
             <button
               onClick={() => setLightboxImage(null)}
-              className="absolute top-4 right-4 p-2 rounded-full bg-slate-900 text-white hover:bg-slate-800"
+              className="absolute top-4 right-4 p-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 z-10"
             >
               <X className="w-6 h-6" />
             </button>

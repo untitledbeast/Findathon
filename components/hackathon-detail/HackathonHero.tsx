@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { HackathonDetailDTO } from '@/lib/domain/dtos/hackathon.dto';
 import { ShieldCheck, Globe, MapPin } from 'lucide-react';
 
@@ -13,10 +14,13 @@ export function HackathonHero({ hackathon }: HackathonHeroProps) {
   return (
     <div className="relative rounded-3xl overflow-hidden glass-card border border-purple-500/30 shadow-2xl">
       <div className="h-64 sm:h-80 w-full relative">
-        <img
+        <Image
           src={hackathon.coverImageUrl || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80'}
           alt={hackathon.title}
-          className="w-full h-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#060816] via-[#060816]/70 to-transparent" />
       </div>

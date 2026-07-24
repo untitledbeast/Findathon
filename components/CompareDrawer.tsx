@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCompareStore } from '@/lib/stores/compare-store';
 import { discoveryEngine } from '@/lib/discovery-engine';
 import { HackathonCard } from '@/lib/types/hackathon';
@@ -88,11 +89,15 @@ export default function CompareDrawer() {
                 </button>
 
                 <div className="space-y-3">
-                  <img
-                    src={h.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop'}
-                    alt={h.title}
-                    className="w-full h-28 rounded-xl object-cover border border-purple-900/30"
-                  />
+                  <div className="relative w-full h-28 rounded-xl overflow-hidden border border-purple-900/30">
+                    <Image
+                      src={h.cover_image_url || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop'}
+                      alt={h.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover"
+                    />
+                  </div>
 
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/lib/auth-context';
@@ -394,7 +395,7 @@ function AccountDashboard() {
         <div className="p-4 border-t border-purple-900/20 space-y-3">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={userName} className="w-8 h-8 rounded-full object-cover ring-1 ring-purple-500/40" />
+              <Image src={avatarUrl} alt={userName} width={32} height={32} className="w-8 h-8 rounded-full object-cover ring-1 ring-purple-500/40" />
             ) : (
               <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
                 {userName.slice(0, 2).toUpperCase()}
@@ -631,7 +632,7 @@ function AccountDashboard() {
               
               <div className="relative">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt={userName} className="w-24 h-24 rounded-full object-cover ring-4 ring-purple-500/40 shadow-xl" />
+                  <Image src={avatarUrl} alt={userName} width={96} height={96} className="w-24 h-24 rounded-full object-cover ring-4 ring-purple-500/40 shadow-xl" />
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-black text-3xl flex items-center justify-center ring-4 ring-purple-500/40 shadow-xl">
                     {userName.slice(0, 2).toUpperCase()}
