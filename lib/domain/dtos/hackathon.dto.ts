@@ -1,67 +1,21 @@
-export interface HackathonDetailDTO {
-  id: string;
-  title: string;
-  description: string;
-  tagline: string | null;
-  startDate: string;
-  endDate: string;
-  registrationDeadline: string | null;
-  locationCity: string | null;
-  locationCollege: string | null;
-  fullAddress: string | null;
-  isOnline: boolean;
-  tags: string[];
-  registerUrl: string;
-  organizerName: string;
-  coverImageUrl: string | null;
-  status: string;
-  latitude: number | null;
-  longitude: number | null;
-  prizePool: string | null;
-  prizeAmount: number;
-  prizeBreakdown: { title?: string; amount?: string }[];
-  difficulty: string;
-  isFeatured: boolean;
-  isVerified: boolean;
-  avgRating: number;
-  reviewCount: number;
-  saveCount: number;
-  viewCount: number;
-  rules: string | null;
-  eligibilityDetails: string | null;
-  registrationFee: number;
-  registrationFeeCurrency: string;
-  tracks: string[];
-  sponsors: string[];
-  techStack: string[];
-  minTeamSize: number;
-  maxTeamSize: number;
-  soloAllowed: boolean;
-  maxParticipants: number | null;
-  currentParticipants: number;
-  durationHours: number | null;
-  certificateProvided: boolean;
-  internshipOpportunity: boolean;
-  hiringOpportunity: boolean;
-  language: string;
-  timezone: string;
-  faq: { question: string; answer: string }[];
-  qualityScore: number;
-  trendingScore: number;
-  seoTitle: string | null;
-  seoDescription: string | null;
-  ogImageUrl: string | null;
-  createdAt: string;
+import { HackathonDTO as BaseHackathonDTO, ProfileDTO } from '@/types';
 
-  // Relations
-  organizerProfile: OrganizerDTO | null;
-  universityProfile: UniversityDTO | null;
-  cityProfile: CityDTO | null;
-  media: MediaDTO[];
-  timeline: TimelineDTO[];
-  statistics: HackathonStatsDTO | null;
-  related: RelatedHackathonDTO[];
-  reviews: ReviewDTO[];
+export type HackathonDTO = BaseHackathonDTO;
+
+export interface ReviewDTO {
+  id: string;
+  rating: number;
+  comment?: string | null;
+  title?: string;
+  body?: string;
+  organizationQuality?: number;
+  prizeTransparency?: number;
+  mentorship?: number;
+  createdAt: string;
+  updatedAt?: string;
+  userId: string;
+  hackathonId?: string;
+  profile?: { fullName: string | null; avatarUrl: string | null } | ProfileDTO | null;
 }
 
 export interface OrganizerDTO {
@@ -154,11 +108,36 @@ export interface RelatedHackathonDTO {
   relationType: string;
 }
 
-export interface ReviewDTO {
-  id: string;
-  rating: number;
-  comment: string | null;
-  createdAt: string;
-  userId: string;
-  profile: { fullName: string | null; avatarUrl: string | null };
+export interface HackathonDetailDTO extends BaseHackathonDTO {
+  organizerName: string;
+  rules: string | null;
+  eligibilityDetails: string | null;
+  registrationFeeCurrency: string;
+  tracks: string[];
+  sponsors: string[];
+  techStack: string[];
+  maxParticipants: number | null;
+  currentParticipants: number;
+  durationHours: number | null;
+  certificateProvided: boolean;
+  internshipOpportunity: boolean;
+  hiringOpportunity: boolean;
+  language: string;
+  timezone: string;
+  faq: { question: string; answer: string }[];
+  qualityScore: number;
+  trendingScore: number;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  ogImageUrl: string | null;
+  prizeAmount: number;
+  prizeBreakdown: { title?: string; amount?: string }[];
+  organizerProfile: OrganizerDTO | null;
+  universityProfile: UniversityDTO | null;
+  cityProfile: CityDTO | null;
+  media: MediaDTO[];
+  timeline: TimelineDTO[];
+  statistics: HackathonStatsDTO | null;
+  related: RelatedHackathonDTO[];
+  reviews: ReviewDTO[];
 }

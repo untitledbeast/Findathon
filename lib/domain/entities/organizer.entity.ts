@@ -1,27 +1,27 @@
+import { Url } from '../value-objects';
+
 export interface OrganizerEntityProps {
   id: string;
   name: string;
-  slug: string;
+  organizationType: string;
+  website: Url | null;
+  logoUrl: Url | null;
+  reputationScore: number;
+  verifiedEventsCount: number;
   isVerified: boolean;
-  followerCount: number;
 }
 
-export class OrganizerEntityDomain {
-  constructor(public props: OrganizerEntityProps) {}
+export class OrganizerEntity {
+  constructor(private props: OrganizerEntityProps) {}
 
   public get id(): string { return this.props.id; }
   public get name(): string { return this.props.name; }
-  public get slug(): string { return this.props.slug; }
+  public get organizationType(): string { return this.props.organizationType; }
+  public get website(): Url | null { return this.props.website; }
+  public get logoUrl(): Url | null { return this.props.logoUrl; }
+  public get reputationScore(): number { return this.props.reputationScore; }
+  public get verifiedEventsCount(): number { return this.props.verifiedEventsCount; }
+  public get isVerified(): boolean { return this.props.isVerified; }
 
-  public verify(): void {
-    this.props.isVerified = true;
-  }
-
-  public incrementFollowers(): void {
-    this.props.followerCount += 1;
-  }
-
-  public decrementFollowers(): void {
-    this.props.followerCount = Math.max(0, this.props.followerCount - 1);
-  }
+  public toProps(): OrganizerEntityProps { return { ...this.props }; }
 }

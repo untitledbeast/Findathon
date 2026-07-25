@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
+import { useNotifications } from '@/hooks/useNotifications';
 import {
   Search,
   Sparkles,
@@ -14,7 +15,9 @@ import {
   Menu,
   X,
   ChevronDown,
-  FileCode2
+  FileCode2,
+  Bell,
+  CheckCheck
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -27,11 +30,14 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   // Scroll listener to increase glass opacity
   useEffect(() => {
@@ -168,6 +174,64 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
           >
             <Search className="w-4 h-4 text-purple-400" />
           </button>
+
+          {/* Notification Bell */}
+          {user && (
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen(!notifOpen)}
+                className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors relative"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4 text-cyan-400" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                )}
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
+                )}
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 mt-3 w-80 rounded-2xl glass-card border border-purple-500/30 p-3 z-50 space-y-2 shadow-2xl animate-fade-in-up">
+                  <div className="flex items-center justify-between border-b border-purple-900/30 pb-2">
+                    <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 text-cyan-400" /> Notifications
+                    </h4>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllRead}
+                        className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1"
+                      >
+                        <CheckCheck className="w-3 h-3" /> Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto space-y-1.5 scrollbar-thin">
+                    {notifications.length > 0 ? (
+                      notifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => markRead(n.id)}
+                          className={`p-2.5 rounded-xl text-left transition-colors cursor-pointer space-y-0.5 border ${
+                            !n.isRead ? 'bg-purple-950/60 border-purple-500/30' : 'bg-slate-950/40 border-purple-900/20'
+                          }`}
+                        >
+                          <p className="text-xs font-bold text-white truncate">{n.title}</p>
+                          <p className="text-[11px] text-slate-300 line-clamp-2">{n.body}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-xs text-slate-400">
+                        No notifications yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Submit Hackathon Small Pill Button */}
           <Link

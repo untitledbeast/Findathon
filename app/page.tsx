@@ -5,8 +5,6 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
 import { SpotlightProvider, useSpotlight } from '@/components/SpotlightSearch';
-import { useDiscovery } from '@/hooks/useDiscovery';
-import { storageService } from '@/lib/storage-service';
 import { CURATED_COLLECTIONS } from '@/lib/collections';
 import { Hackathon } from '@/lib/supabase';
 import {
@@ -140,26 +138,30 @@ function HeroContent() {
   );
 }
 
-function MainDiscoveryContent() {
-  const { results, loading, error, filters, updateFilters, resetFilters } = useDiscovery({
-    autoFetch: true,
-    source: 'home'
-  });
+import { useHackathons } from '@/hooks/useHackathons';
+import { useBookmarks } from '@/hooks/useBookmarks';
+import { useAnalytics } from '@/hooks/useAnalytics';
 
-  const [savedIds, setSavedIds] = useState<string[]>(() => storageService.getSavedIds());
+function MainDiscoveryContent() {
+  const [filterState, setFilterState] = useState<{ isOnline?: boolean; tags?: string[] }>({});
+  const { hackathons, isLoading, error, refresh } = useHackathons(filterState);
+  const { savedIds, toggle: toggleSave } = useBookmarks();
+  const { track } = useAnalytics();
+
   const [showSavedOnly, setShowSavedOnly] = useState(false);
 
-  const handleToggleSave = (id: string) => {
-    const updated = storageService.toggleSavedId(id);
-    setSavedIds(updated);
-  };
+  useEffect(() => {
+    track('page_view', { page: 'home' });
+  }, [track]);
 
   const displayedResults = useMemo(() => {
     if (showSavedOnly) {
-      return results.filter(h => savedIds.includes(h.id));
+      return hackathons.filter(h => savedIds.includes(h.id));
     }
-    return results;
-  }, [results, showSavedOnly, savedIds]);
+    return hackathons;
+  }, [hackathons, showSavedOnly, savedIds]);
+
+  const resetFilters = () => setFilterState({});
 
   return (
     <div className="min-h-screen flex flex-col bg-[#060816] text-[#F6F8FC] selection:bg-purple-600 selection:text-white">
@@ -185,7 +187,7 @@ function MainDiscoveryContent() {
             {CURATED_COLLECTIONS.map((coll) => (
               <div
                 key={coll.id}
-                onClick={() => updateFilters(prev => ({ ...prev, ...coll.query }))}
+                onClick={() => setFilterState(prev => ({ ...prev, tags: coll.query.tags }))}
                 className="p-4 rounded-2xl glass-card border border-purple-900/30 hover:border-purple-500/50 hover:bg-purple-950/40 transition-all cursor-pointer space-y-2 group"
               >
                 <div className="text-2xl group-hover:scale-110 transition-transform">{coll.emoji}</div>
@@ -204,9 +206,9 @@ function MainDiscoveryContent() {
             </span>
 
             <button
-              onClick={() => updateFilters(prev => ({ ...prev, isOnline: undefined }))}
+              onClick={() => setFilterState(prev => ({ ...prev, isOnline: undefined }))}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                filters.isOnline === undefined
+                filterState.isOnline === undefined
                   ? 'bg-purple-600 text-white border-purple-400 shadow-md'
                   : 'glass-card text-slate-300 border-purple-900/30 hover:text-white'
               }`}
@@ -215,9 +217,9 @@ function MainDiscoveryContent() {
             </button>
 
             <button
-              onClick={() => updateFilters(prev => ({ ...prev, isOnline: true }))}
+              onClick={() => setFilterState(prev => ({ ...prev, isOnline: true }))}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                filters.isOnline === true
+                filterState.isOnline === true
                   ? 'bg-purple-600 text-white border-purple-400 shadow-md'
                   : 'glass-card text-slate-300 border-purple-900/30 hover:text-white'
               }`}
@@ -226,9 +228,9 @@ function MainDiscoveryContent() {
             </button>
 
             <button
-              onClick={() => updateFilters(prev => ({ ...prev, isOnline: false }))}
+              onClick={() => setFilterState(prev => ({ ...prev, isOnline: false }))}
               className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                filters.isOnline === false
+                filterState.isOnline === false
                   ? 'bg-purple-600 text-white border-purple-400 shadow-md'
                   : 'glass-card text-slate-300 border-purple-900/30 hover:text-white'
               }`}
@@ -252,7 +254,7 @@ function MainDiscoveryContent() {
         </section>
 
         {/* HACKATHON CARDS GRID */}
-        {loading ? (
+        {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-80 rounded-2xl bg-slate-950/60 border border-purple-900/20 animate-pulse" />
@@ -262,7 +264,7 @@ function MainDiscoveryContent() {
           <div className="py-16 text-center space-y-4">
             <p className="text-sm font-bold text-rose-400">{error}</p>
             <button
-              onClick={resetFilters}
+              onClick={() => refresh()}
               className="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold"
             >
               Retry Search
@@ -273,9 +275,27 @@ function MainDiscoveryContent() {
             {displayedResults.map((h) => (
               <HackathonCard
                 key={h.id}
-                hackathon={h as unknown as Hackathon}
+                hackathon={{
+                  id: h.id,
+                  title: h.title,
+                  tagline: h.tagline,
+                  description: h.description,
+                  start_date: h.startDate,
+                  end_date: h.endDate,
+                  registration_deadline: h.registrationDeadline,
+                  location_city: h.locationCity,
+                  location_college: h.locationCollege,
+                  full_address: h.fullAddress,
+                  is_online: h.isOnline,
+                  mode: h.mode,
+                  tags: h.tags,
+                  register_url: h.registerUrl,
+                  organizer: h.organizer,
+                  cover_image_url: h.coverImageUrl,
+                  status: h.status
+                } as unknown as Hackathon}
                 isSaved={savedIds.includes(h.id)}
-                onToggleSave={handleToggleSave}
+                onToggleSave={() => toggleSave(h.id)}
               />
             ))}
           </div>

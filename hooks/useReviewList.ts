@@ -15,7 +15,7 @@ export function useReviewList(hackathonId: string, initialReviews: ReviewDTO[] =
 
     ReviewRepository.getForHackathon(hackathonId).then(raw => {
       if (isMounted) {
-        setReviews(raw.map(mapReviewToDTO));
+        setReviews(raw.map(item => mapReviewToDTO(item as unknown as Record<string, unknown>)));
         setLoading(false);
       }
     });

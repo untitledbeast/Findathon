@@ -1,6 +1,6 @@
 import { Job } from './job.interface';
 import { supabase } from '@/lib/supabase';
-import { HackathonEntity } from '@/lib/domain/entities/hackathon.entity';
+import { HackathonFactory } from '@/lib/domain/factories';
 
 export const computeQualityJob: Job = {
   name: 'ComputeQualityJob',
@@ -13,19 +13,28 @@ export const computeQualityJob: Job = {
       if (!data) return;
 
       for (const h of data) {
-        const entity = new HackathonEntity({
-          id: h.id,
+        const entity = HackathonFactory.createNew({
           title: h.title,
           description: h.description || '',
           tagline: h.tagline || null,
-          startDate: h.start_date,
-          endDate: h.end_date,
-          registrationDeadline: h.registration_deadline || null,
-          status: h.status,
-          maxParticipants: h.max_participants || null,
-          currentParticipants: h.current_participants || 0,
-          isVerified: Boolean(h.is_verified),
-          prizeAmount: h.prize_amount || 0
+          startDate: h.start_date || new Date().toISOString(),
+          endDate: h.end_date || new Date().toISOString(),
+          registrationDeadline: h.registration_deadline || h.start_date || new Date().toISOString(),
+          registerUrl: h.register_url || 'https://findathon.dev',
+          organizer: h.organizer || 'Community Organizer',
+          organization: h.organization || null,
+          isOnline: Boolean(h.is_online),
+          city: h.location_city,
+          college: h.location_college,
+          fullAddress: h.full_address,
+          latitude: h.latitude ? Number(h.latitude) : null,
+          longitude: h.longitude ? Number(h.longitude) : null,
+          tags: Array.isArray(h.tags) ? h.tags : [],
+          prizePool: h.prize_pool || null,
+          minTeamSize: h.min_team_size || 1,
+          maxTeamSize: h.max_team_size || 4,
+          soloAllowed: h.solo_allowed ?? true,
+          submittedBy: h.submitted_by || null
         });
 
         const qualityScore = entity.calculateQualityScore();

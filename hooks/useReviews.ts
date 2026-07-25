@@ -1,48 +1,102 @@
 'use client';
 
-import { useState } from 'react';
-import { ReviewRepository } from '@/lib/domain/review.repository';
-import { Review } from '@/lib/domain/hackathon.repository';
+import { useState, useEffect, useCallback } from 'react';
+import { ReviewDTO } from '@/types';
+import { reviewsApi } from '@/lib/api/reviews';
 import { useAuth } from '@/lib/auth-context';
 
-export function useReviews(hackathonId: string, initialReviews: Review[] = []) {
+export function useReviews(hackathonId: string) {
   const { user } = useAuth();
-  const [reviews, setReviews] = useState<Review[]>(initialReviews);
-  const [submitting, setSubmitting] = useState(false);
-  const [userRating, setUserRating] = useState(0);
-  const [userComment, setUserComment] = useState('');
+  const [reviews, setReviews] = useState<ReviewDTO[]>([]);
+  const [average, setAverage] = useState<number>(5.0);
+  const [total, setTotal] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const submitReview = async () => {
-    if (!user || !userRating || !hackathonId) return;
-    setSubmitting(true);
-    const { data, error } = await ReviewRepository.create(
-      hackathonId, user.id, userRating, userComment
-    );
-    if (!error && data) {
-      const newReview: Review = {
-        ...data,
-        profile: { full_name: user.email?.split('@')[0] || 'You', avatar_url: null }
-      };
-      setReviews(prev => [newReview, ...prev.filter(r => r.user_id !== user.id)]);
-      setUserComment('');
+  const fetchReviews = useCallback(async () => {
+    if (!hackathonId) return;
+    setIsFetching(true);
+    setError(null);
+    try {
+      const res = await reviewsApi.getByHackathon(hackathonId);
+      setReviews(res.reviews);
+      setAverage(res.average);
+      setTotal(res.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load reviews');
+    } finally {
+      setIsLoading(false);
+      setIsFetching(false);
     }
-    setSubmitting(false);
-  };
+  }, [hackathonId]);
 
-  const deleteReview = async () => {
-    if (!user || !hackathonId) return;
-    await ReviewRepository.delete(hackathonId, user.id);
-    setReviews(prev => prev.filter(r => r.user_id !== user.id));
-  };
+  useEffect(() => {
+    let isMounted = true;
+    if (hackathonId) {
+      reviewsApi.getByHackathon(hackathonId).then(res => {
+        if (isMounted) {
+          setReviews(res.reviews);
+          setAverage(res.average);
+          setTotal(res.total);
+          setIsLoading(false);
+        }
+      }).catch(err => {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load reviews');
+          setIsLoading(false);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [hackathonId]);
+
+  const submitReview = useCallback(async (reviewData: {
+    rating: number;
+    title: string;
+    body: string;
+    organizationQuality: number;
+    prizeTransparency: number;
+    mentorship: number;
+  }) => {
+    if (!user) throw new Error('Authentication required');
+    setIsSubmitting(true);
+    try {
+      const res = await reviewsApi.create({
+        hackathonId,
+        ...reviewData
+      });
+      await fetchReviews();
+      return res;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit review');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [user, hackathonId, fetchReviews]);
+
+  const canReview = Boolean(user && !reviews.some(r => r.userId === user.id));
 
   return {
+    data: reviews,
     reviews,
+    average,
+    total,
+    error,
+    isLoading,
+    isFetching,
+    isSubmitting,
+    isRefreshing: false,
+    canReview,
     submitReview,
-    deleteReview,
-    submitting,
-    userRating,
-    setUserRating,
-    userComment,
-    setUserComment
+    refresh: fetchReviews,
+    mutate: (updater: (prev: ReviewDTO[]) => ReviewDTO[]) => setReviews(updater),
+    invalidate: fetchReviews,
+    prefetch: () => {},
+    reset: () => { setReviews([]); setError(null); }
   };
 }

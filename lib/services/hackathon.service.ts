@@ -21,18 +21,7 @@ export const HackathonService = {
     const rawHackathon = await HackathonRepository.getById(id);
     if (!rawHackathon) return null;
 
-    // Map to DTO
-    const dto = mapHackathonDetailToDTO(
-      rawHackathon,
-      rawHackathon.organizer_profile,
-      rawHackathon.university_profile,
-      rawHackathon.city_profile,
-      rawHackathon.media,
-      rawHackathon.timeline,
-      rawHackathon.statistics,
-      rawHackathon.related,
-      rawHackathon.reviews
-    );
+    const dto = mapHackathonDetailToDTO(rawHackathon as unknown as Record<string, unknown>);
 
     // Save to Entity Cache
     entityCache.set(cacheKey, dto);

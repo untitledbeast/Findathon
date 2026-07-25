@@ -1,10 +1,13 @@
-import { RichHackathon, HackathonDetail } from '@/lib/domain/hackathon.repository';
-import { HackathonFilters } from '@/lib/database/filters/hackathon.filters';
+import { HackathonDTO, PaginationParams, HackathonFilters } from '@/types';
+import { HackathonSearchSpecification } from '../specifications';
 
 export interface IHackathonRepository {
-  getById(id: string): Promise<HackathonDetail | null>;
-  getList(filters?: HackathonFilters): Promise<RichHackathon[]>;
-  create(data: Partial<RichHackathon>): Promise<RichHackathon | null>;
-  update(id: string, data: Partial<RichHackathon>): Promise<RichHackathon | null>;
-  updateStatus(id: string, status: string): Promise<boolean>;
+  findAll(spec: HackathonSearchSpecification): Promise<{ data: HackathonDTO[]; total: number }>;
+  findById(id: string): Promise<HackathonDTO | null>;
+  findByUserId(userId: string): Promise<HackathonDTO[]>;
+  create(data: Omit<HackathonDTO, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'viewCount' | 'saveCount' | 'avgRating' | 'reviewCount'>): Promise<HackathonDTO>;
+  update(id: string, data: Partial<HackathonDTO>): Promise<HackathonDTO>;
+  updateStatus(id: string, status: string): Promise<void>;
+  incrementViewCount(id: string): Promise<void>;
+  search(query: string, filters: HackathonFilters, pagination: PaginationParams): Promise<{ data: HackathonDTO[]; total: number }>;
 }

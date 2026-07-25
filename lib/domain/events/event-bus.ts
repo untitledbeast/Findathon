@@ -1,21 +1,40 @@
-/**
- * INERT INFRASTRUCTURE CONTRACT
- * Reserved for future domain event publishing when Reviews/Bookmarking domain events are implemented.
- * Tracked in docs/architecture.md.
- */
-import { DomainEvent } from './event-types';
-import { defaultQueueProvider, IEventQueueProvider } from './memory-queue.provider';
+import { DomainEvent, DomainEventHandler } from './event-types';
 
-export class EventBus {
-  constructor(private queueProvider: IEventQueueProvider = defaultQueueProvider) {}
+export interface IEventBus {
+  publish(event: DomainEvent): Promise<void>;
+  subscribe(eventName: string, handler: DomainEventHandler): () => void;
+}
 
-  async publish(event: DomainEvent): Promise<void> {
-    await this.queueProvider.enqueue(event);
+export class InMemoryEventBus implements IEventBus {
+  private handlers = new Map<string, Set<DomainEventHandler>>();
+
+  public async publish(event: DomainEvent): Promise<void> {
+    const eventHandlers = this.handlers.get(event.eventName);
+    if (!eventHandlers || eventHandlers.size === 0) return;
+
+    const promises = Array.from(eventHandlers).map(handler => {
+      try {
+        return Promise.resolve(handler(event));
+      } catch (err) {
+        console.error(`Error handling domain event ${event.eventName}:`, err);
+        return Promise.resolve();
+      }
+    });
+
+    await Promise.all(promises);
   }
 
-  subscribe(eventName: string, handler: (event: DomainEvent) => Promise<void>): void {
-    this.queueProvider.subscribe(eventName, handler);
+  public subscribe(eventName: string, handler: DomainEventHandler): () => void {
+    if (!this.handlers.has(eventName)) {
+      this.handlers.set(eventName, new Set());
+    }
+    const set = this.handlers.get(eventName)!;
+    set.add(handler);
+
+    return () => {
+      set.delete(handler);
+    };
   }
 }
 
-export const eventBus = new EventBus();
+export const eventBus = new InMemoryEventBus();

@@ -7,8 +7,9 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/components/AuthModal';
-import { useHackathonDetail } from '@/hooks/useHackathonDetail';
-import { useBookmark } from '@/hooks/useBookmark';
+import { useHackathon } from '@/hooks/useHackathon';
+import { useBookmarks } from '@/hooks/useBookmarks';
+import { HackathonDetailDTO } from '@/lib/domain/dtos/hackathon.dto';
 import { useCompareStore } from '@/lib/stores/compare-store';
 import { MetadataService } from '@/lib/services/metadata.service';
 import { HackathonHero } from '@/components/hackathon-detail/HackathonHero';
@@ -39,8 +40,8 @@ export default function HackathonDetailPage() {
 
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
-  const { data: hackathon, loading, error } = useHackathonDetail(id);
-  const { isSaved, toggle: toggleSave } = useBookmark(id);
+  const { hackathon, isLoading: loading, error } = useHackathon(id);
+  const { isSaved, toggle: toggleSave } = useBookmarks();
   const { compareIds, toggleCompare } = useCompareStore();
 
   const [copied, setCopied] = useState(false);
@@ -118,7 +119,8 @@ export default function HackathonDetailPage() {
 
   const mainTag = hackathon.tags?.[0] || 'General';
   const isCompared = compareIds.includes(hackathon.id);
-  const jsonLd = MetadataService.generateJsonLd(hackathon);
+  const detail = hackathon as unknown as HackathonDetailDTO;
+  const jsonLd = MetadataService.generateJsonLd(detail);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#060816] text-[#F6F8FC] selection:bg-purple-600 selection:text-white">
@@ -140,10 +142,10 @@ export default function HackathonDetailPage() {
         </nav>
 
         {/* SECTION 1: HERO */}
-        <HackathonHero hackathon={hackathon} />
+        <HackathonHero hackathon={detail} />
 
         {/* SECTION 2: QUICK FACTS BAR */}
-        <QuickFacts hackathon={hackathon} />
+        <QuickFacts hackathon={detail} />
 
         {/* SECTION 3: TWO-COLUMN LAYOUT */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -154,46 +156,46 @@ export default function HackathonDetailPage() {
 
             <PrizeSection
               prizePool={hackathon.prizePool}
-              prizeAmount={hackathon.prizeAmount}
-              prizeBreakdown={hackathon.prizeBreakdown}
+              prizeAmount={detail.prizeAmount || 10000}
+              prizeBreakdown={detail.prizeBreakdown || []}
             />
 
             <TimelineSection
-              timeline={hackathon.timeline}
-              registrationDeadline={hackathon.registrationDeadline}
+              timeline={detail.timeline || []}
+              registrationDeadline={hackathon.registrationDeadline || hackathon.startDate}
               startDate={hackathon.startDate}
             />
 
-            <RequirementsSection hackathon={hackathon} />
+            <RequirementsSection hackathon={detail} />
 
-            <GallerySection media={hackathon.media} />
+            <GallerySection media={detail.media || []} />
 
             <ReviewSection
               hackathonId={hackathon.id}
-              initialReviews={hackathon.reviews}
+              initialReviews={detail.reviews || []}
               avgRating={hackathon.avgRating}
             />
 
-            <FAQSection faq={hackathon.faq} />
+            <FAQSection faq={detail.faq || []} />
 
-            <RelatedSection related={hackathon.related} />
+            <RelatedSection related={detail.related || []} />
           </div>
 
           {/* RIGHT STICKY SIDEBAR */}
           <div className="space-y-6 lg:sticky lg:top-24">
-            <CountdownCard hackathon={hackathon} />
+            <CountdownCard hackathon={detail} />
 
             {/* ACTION BUTTONS GRID */}
             <div className="glass-card rounded-2xl p-4 border border-purple-900/30 grid grid-cols-2 gap-2">
               <button
-                onClick={toggleSave}
+                onClick={() => toggleSave(hackathon.id)}
                 className={`p-3 rounded-xl text-xs font-bold border flex items-center justify-center gap-2 transition-all ${
-                  isSaved
+                  isSaved(hackathon.id)
                     ? 'bg-purple-600 text-white border-purple-400 shadow-md'
                     : 'glass-card text-slate-300 border-purple-900/30 hover:text-white'
                 }`}
               >
-                <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-white' : ''}`} /> {isSaved ? 'Saved' : 'Save'}
+                <Bookmark className={`w-4 h-4 ${isSaved(hackathon.id) ? 'fill-white' : ''}`} /> {isSaved(hackathon.id) ? 'Saved' : 'Save'}
               </button>
 
               <button
@@ -226,11 +228,11 @@ export default function HackathonDetailPage() {
               </button>
             </div>
 
-            <OrganizerCard hackathon={hackathon} />
+            <OrganizerCard hackathon={detail} />
 
             <ContactCard
-              contactEmail={hackathon.organizerProfile?.slug}
-              contactPhone={undefined}
+              contactEmail={detail.organizerProfile?.slug || hackathon.contactEmail || ''}
+              contactPhone={hackathon.contactPhone || undefined}
             />
           </div>
 

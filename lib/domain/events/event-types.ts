@@ -12,6 +12,18 @@ export interface HackathonCreatedEvent extends BaseDomainEvent {
   organizerName: string;
 }
 
+export interface HackathonUpdatedEvent extends BaseDomainEvent {
+  eventName: 'HackathonUpdated';
+  hackathonId: string;
+  title: string;
+}
+
+export interface HackathonPublishedEvent extends BaseDomainEvent {
+  eventName: 'HackathonPublished';
+  hackathonId: string;
+  title: string;
+}
+
 export interface ReviewCreatedEvent extends BaseDomainEvent {
   eventName: 'ReviewCreated';
   reviewId: string;
@@ -25,14 +37,19 @@ export interface BookmarkCreatedEvent extends BaseDomainEvent {
   userId: string;
 }
 
-export interface UserFollowedOrganizerEvent extends BaseDomainEvent {
-  eventName: 'UserFollowedOrganizer';
-  organizerId: string;
+export interface NotificationCreatedEvent extends BaseDomainEvent {
+  eventName: 'NotificationCreated';
+  notificationId: string;
   userId: string;
+  type: string;
 }
 
 export type DomainEvent =
   | HackathonCreatedEvent
+  | HackathonUpdatedEvent
+  | HackathonPublishedEvent
   | ReviewCreatedEvent
   | BookmarkCreatedEvent
-  | UserFollowedOrganizerEvent;
+  | NotificationCreatedEvent;
+
+export type DomainEventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Promise<void> | void;

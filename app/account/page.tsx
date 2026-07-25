@@ -157,11 +157,14 @@ const INITIAL_NOTIFICATIONS = [
   { id: '5', title: '🏆 Achievement Unlocked', desc: 'You earned the "Early Bird" pioneer developer badge.', time: '3 days ago', icon: Trophy, color: 'text-amber-400', unread: false }
 ];
 
+import { useNotifications } from '@/hooks/useNotifications';
+
 function AccountDashboard() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, profile, loading: authLoading, signOut, refreshProfile } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const { unreadCount, markAllRead } = useNotifications();
 
   const tabParam = searchParams.get('tab') || 'dashboard';
   const [internalTab, setInternalTab] = useState<string | null>(null);
@@ -196,7 +199,7 @@ function AccountDashboard() {
   const [allHackathons, setAllHackathons] = useState<Hackathon[]>([]);
 
   // Settings & Delete modal
-  const [notificationsList, setNotificationsList] = useState(INITIAL_NOTIFICATIONS);
+  const [notificationsList] = useState(INITIAL_NOTIFICATIONS);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
 
@@ -287,10 +290,8 @@ function AccountDashboard() {
     }
   };
 
-  const unreadCount = notificationsList.filter(n => n.unread).length;
-
   const markAllNotificationsRead = () => {
-    setNotificationsList(prev => prev.map(n => ({ ...n, unread: false })));
+    markAllRead();
   };
 
   const switchTab = (tabKey: string) => {

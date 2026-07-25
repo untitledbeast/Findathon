@@ -1,37 +1,79 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { HackathonRepository, HackathonDetail } from '@/lib/domain/hackathon.repository';
+import { useState, useEffect, useCallback } from 'react';
+import { HackathonDTO } from '@/types';
+import { hackathonsApi } from '@/lib/api/hackathons';
 
 export function useHackathon(id: string) {
-  const [data, setData] = useState<HackathonDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<HackathonDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isFetching, setIsFetching] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const fetchHackathon = useCallback(async () => {
+    if (!id) return;
+    setIsFetching(true);
+    setError(null);
+    try {
+      const res = await hackathonsApi.getById(id);
+      setData(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load hackathon details');
+    } finally {
+      setIsLoading(false);
+      setIsFetching(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (!id) return;
     let isMounted = true;
-
-    HackathonRepository.getById(id)
-      .then(h => {
+    if (id) {
+      hackathonsApi.getById(id).then(res => {
         if (isMounted) {
-          setData(h);
-          setError(h ? null : 'Hackathon not found');
+          setData(res);
+          setIsLoading(false);
         }
-      })
-      .catch(e => {
+      }).catch(err => {
         if (isMounted) {
-          setError(e instanceof Error ? e.message : 'Failed to load hackathon');
+          setError(err instanceof Error ? err.message : 'Failed to load hackathon details');
+          setIsLoading(false);
         }
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
       });
-
+    }
     return () => {
       isMounted = false;
     };
   }, [id]);
 
-  return { data, loading, error };
+  const update = useCallback(async (updatedFields: Partial<HackathonDTO>) => {
+    if (!id) return null;
+    setIsSubmitting(true);
+    try {
+      const res = await hackathonsApi.update(id, updatedFields);
+      setData(res);
+      return res;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [id]);
+
+  return {
+    data,
+    hackathon: data,
+    error,
+    isLoading,
+    isFetching,
+    isSubmitting,
+    isRefreshing: false,
+    refresh: fetchHackathon,
+    mutate: (updater: (prev: HackathonDTO | null) => HackathonDTO | null) => setData(updater),
+    update,
+    invalidate: fetchHackathon,
+    prefetch: () => {},
+    reset: () => { setData(null); setError(null); }
+  };
 }
