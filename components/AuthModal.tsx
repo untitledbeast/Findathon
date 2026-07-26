@@ -42,16 +42,20 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
+      setError(null);
+      if (typeof window !== 'undefined') {
+        document.cookie = `redirect_after_login=${encodeURIComponent(window.location.pathname)}; path=/; max-age=600`;
+      }
       await signInWithGoogle();
     } catch (err) {
-      console.error('Google Sign In Error:', err);
-    } finally {
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
       setLoading(false);
     }
   };
@@ -88,6 +92,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </p>
           </div>
         </div>
+
+        {error && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+            {error}
+          </div>
+        )}
 
         {/* Google Sign-in Button */}
         <div className="pt-2">

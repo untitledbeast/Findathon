@@ -1,0 +1,12 @@
+export { HackathonAggregate } from './domain/aggregates/HackathonAggregate';
+export { HackathonSearchSpecification, type HackathonSearchFilters } from './domain/specifications/HackathonSearchSpecification';
+export { SpatialSpecification, type ViewportBounds } from './domain/specifications/SpatialSpecification';
+export type { IHackathonRepository } from './domain/repositories/IHackathonRepository';
+export type { HackathonDTO } from './application/dtos/HackathonDTO';
+export { HackathonMapper } from './application/mappers/HackathonMapper';
+export { GetHackathonDetailHandler } from './application/queries/GetHackathonDetailHandler';
+export { SearchHackathonsHandler, type SearchHackathonsResponse } from './application/queries/SearchHackathonsHandler';
+export { SupabaseHackathonRepository } from './infrastructure/repositories/SupabaseHackathonRepository';
+export type { HackathonCardViewModel } from './presentation/view-models/HackathonCardViewModel';
+export { createHackathonCardViewModel } from './presentation/view-models/HackathonCardViewModel';
+export { hackathonsApi } from './api/hackathons';
