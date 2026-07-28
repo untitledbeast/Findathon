@@ -22,6 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://findathon.vercel.app'),
   title: "Findathon — Discover & Submit Hackathons Near You",
   description: "Find top online, college, and in-person hackathons. Filter by city, university, AI, and Web3 tags. Submit your own hackathon events easily.",
   keywords: ["hackathon", "hackathon finder", "AI hackathon", "Web3 hackathon", "college hackathon", "Findathon", "coding competition"],

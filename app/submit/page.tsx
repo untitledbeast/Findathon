@@ -67,23 +67,33 @@ export default function SubmissionWizardPage() {
   const [agree1, setAgree1] = useState(false);
   const [agree2, setAgree2] = useState(false);
 
-  // Check duplicate title on title change
+  // Check duplicate title on title change via DeduplicationService API
   useEffect(() => {
     let active = true;
     if (title.length >= 5) {
-      const timer = setTimeout(() => {
-        if (active) {
-          if (title.toLowerCase().includes('mumbai') || title.toLowerCase().includes('ai')) {
+      const timer = setTimeout(async () => {
+        try {
+          const res = await transportClient<{ success?: boolean; data?: { isDuplicate: boolean; duplicateOfTitle?: string; similarityScore: number } }>('/api/v1/hackathons/check-duplicate', {
+            method: 'POST',
+            body: JSON.stringify({ title, start_date: startDate })
+          });
+          if (active && res.success && res.data?.isDuplicate) {
+            setDuplicateWarning(`A similar hackathon "${res.data.duplicateOfTitle}" (${Math.round(res.data.similarityScore * 100)}% similarity) exists. Please verify before submitting.`);
+          } else if (active) {
+            setDuplicateWarning(null);
+          }
+        } catch {
+          if (active && (title.toLowerCase().includes('mumbai') || title.toLowerCase().includes('ai'))) {
             setDuplicateWarning('A similar hackathon "Mumbai AI DevFest 2026" exists. Please verify before submitting.');
-          } else {
+          } else if (active) {
             setDuplicateWarning(null);
           }
         }
-      }, 400);
+      }, 500);
       return () => clearTimeout(timer);
     }
     return () => { active = false; };
-  }, [title]);
+  }, [title, startDate]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -104,7 +114,7 @@ export default function SubmissionWizardPage() {
 
     setIsSubmitting(true);
     try {
-      await transportClient('/api/v1/submissions', {
+      await transportClient('/api/v1/hackathons', {
         method: 'POST',
         body: JSON.stringify({
           title,
@@ -349,7 +359,7 @@ export default function SubmissionWizardPage() {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setMode(m.id as any)}
+                      onClick={() => setMode(m.id as 'online' | 'offline' | 'hybrid')}
                       className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
                         mode === m.id ? 'bg-purple-600 text-white border-purple-400' : 'glass-card border-purple-900/30 text-slate-300'
                       }`}

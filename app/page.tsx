@@ -212,7 +212,8 @@ function LiveStatsSection({ stats }: { stats?: { hackathons: number; users: numb
   );
 }
 
-function mapDtoToHackathon(dto: Record<string, any>) {
+function mapDtoToHackathon(input: unknown) {
+  const dto = (input || {}) as Record<string, unknown>;
   return {
     id: dto.id,
     title: dto.title,
@@ -274,11 +275,14 @@ function FeaturedCarouselSection({ featured }: { featured: unknown[] }) {
         className="flex gap-6 overflow-x-auto scrollbar-none py-4 px-1"
       >
         {featured.length > 0 ? (
-          featured.map((h: any) => (
-            <div key={h.id} className="w-80 shrink-0">
-              <HackathonCard hackathon={mapDtoToHackathon(h)} />
-            </div>
-          ))
+          featured.map((h: unknown, idx: number) => {
+            const item = (h || {}) as Record<string, unknown>;
+            return (
+              <div key={String(item.id || idx)} className="w-80 shrink-0">
+                <HackathonCard hackathon={mapDtoToHackathon(item)} />
+              </div>
+            );
+          })
         ) : (
           [1, 2, 3].map((i) => (
             <div key={i} className="w-80 h-96 glass-card rounded-3xl p-4 animate-pulse space-y-4 shrink-0">
@@ -484,9 +488,10 @@ function MainAppContent() {
             </div>
           ) : searchHook.results.length > 0 ? (
             <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
-              {searchHook.results.map((h: any) => (
-                <HackathonCard key={h.id} hackathon={mapDtoToHackathon(h)} />
-              ))}
+              {searchHook.results.map((h: unknown, idx: number) => {
+                const item = (h || {}) as Record<string, unknown>;
+                return <HackathonCard key={String(item.id || idx)} hackathon={mapDtoToHackathon(item)} />;
+              })}
             </div>
           ) : (
             <div className="py-16 text-center space-y-4 glass-card p-12 rounded-3xl border border-purple-900/30">

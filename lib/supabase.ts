@@ -42,6 +42,7 @@ export interface Hackathon {
   registration_fee?: 'Free' | 'Paid' | string | null;
   registration_fee_amount?: string | null;
   requirements?: string | null;
+  source?: string | null;
 }
 
 export interface SavedHackathon {
@@ -63,6 +64,7 @@ export interface Profile {
   social_linkedin?: string | null;
   social_instagram?: string | null;
   social_discord?: string | null;
+  role?: 'user' | 'organizer' | 'moderator' | 'admin';
   created_at?: string;
   updated_at?: string;
 }

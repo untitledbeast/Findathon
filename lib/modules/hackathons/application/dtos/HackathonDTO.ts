@@ -24,4 +24,14 @@ export interface HackathonDTO {
   submittedBy?: string;
   createdAt: string;
   updatedAt: string;
+  // Admin & Review Fields
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  isVerified?: boolean;
+  submitter?: {
+    full_name: string;
+    email: string;
+    avatar_url?: string;
+  };
 }

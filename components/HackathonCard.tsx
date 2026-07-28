@@ -40,6 +40,22 @@ export default function HackathonCard({ hackathon, isSaved = false, onToggleSave
   const defaultCover = 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000&auto=format&fit=crop';
   const coverUrl = (imgError || !hackathon.cover_image_url) ? defaultCover : hackathon.cover_image_url;
 
+  const getPlatformSource = () => {
+    if (hackathon.source && hackathon.source !== 'Manual' && hackathon.source !== 'Community') {
+      return hackathon.source;
+    }
+    const url = (hackathon.register_url || '').toLowerCase();
+    if (url.includes('devfolio.co')) return 'Devfolio';
+    if (url.includes('unstop.com')) return 'Unstop';
+    if (url.includes('devpost.com')) return 'Devpost';
+    if (url.includes('mlh.io')) return 'MLH';
+    if (url.includes('lu.ma') || url.includes('luma')) return 'Luma';
+    if (url.includes('eventbrite')) return 'Eventbrite';
+    if (url.includes('hackalist')) return 'Hackalist';
+    return null;
+  };
+  const platformSource = getPlatformSource();
+
   return (
     <div className="group relative flex flex-col rounded-2xl bg-slate-900/80 border border-purple-900/30 hover:border-purple-500/60 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_12px_35px_-10px_rgba(124,58,237,0.3)] overflow-hidden">
       
@@ -57,15 +73,24 @@ export default function HackathonCard({ hackathon, isSaved = false, onToggleSave
 
         {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
-          {/* Online / Offline badge */}
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md border ${
-            hackathon.is_online 
-              ? 'bg-purple-950/80 text-purple-300 border-purple-500/40' 
-              : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
-          }`}>
-            {hackathon.is_online ? <Globe className="w-3.5 h-3.5 text-purple-400" /> : <MapPin className="w-3.5 h-3.5 text-emerald-400" />}
-            {hackathon.is_online ? 'Online Event' : 'In-Person'}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Online / Offline badge */}
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-md border ${
+              hackathon.is_online 
+                ? 'bg-purple-950/80 text-purple-300 border-purple-500/40' 
+                : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+            }`}>
+              {hackathon.is_online ? <Globe className="w-3.5 h-3.5 text-purple-400" /> : <MapPin className="w-3.5 h-3.5 text-emerald-400" />}
+              {hackathon.is_online ? 'Online Event' : 'In-Person'}
+            </span>
+            {/* Source Attribution Badge */}
+            {platformSource && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide backdrop-blur-md bg-indigo-950/90 text-indigo-200 border border-indigo-500/50 shadow-sm">
+                <Sparkles className="w-3 h-3 text-indigo-400" />
+                Source: {platformSource}
+              </span>
+            )}
+          </div>
 
           {/* Bookmark Button */}
           <button

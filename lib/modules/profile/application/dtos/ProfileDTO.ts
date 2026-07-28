@@ -12,8 +12,10 @@ export interface ProfileDTO {
   socialDiscord: string;
   skills: string[];
   interests: string[];
-  role: 'user' | 'organizer' | 'admin';
+  role: 'user' | 'organizer' | 'moderator' | 'admin';
   isFirstLogin: boolean;
   onboardingComplete: boolean;
   xpPoints: number;
+  email?: string | null;
+  createdAt?: string;
 }

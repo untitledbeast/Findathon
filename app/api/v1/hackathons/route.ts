@@ -8,6 +8,7 @@ import { submitHackathonSchema } from '@/lib/validators/hackathon.schema';
 import { validate } from '@/lib/middleware/validate';
 import { formatError } from '@/lib/errors';
 import { checkRateLimit } from '@/lib/middleware/rate-limit';
+import { GeocodeService } from '@/lib/services/geocode.service';
 
 export async function GET(req: NextRequest) {
   try {
@@ -78,6 +79,15 @@ export async function POST(req: NextRequest) {
     if (!result.ok) {
       const err = formatError(result.error);
       return NextResponse.json(err, { status: result.error.statusCode });
+    }
+
+    // Trigger background geocoding for offline/hybrid events
+    if (!validatedData.isOnline && (validatedData.locationCity || validatedData.locationCollege)) {
+      GeocodeService.geocodeAndSaveHackathon(
+        result.value.id,
+        validatedData.locationCity,
+        validatedData.locationCollege
+      ).catch(() => {});
     }
 
     return NextResponse.json({ data: result.value }, { status: 201 });

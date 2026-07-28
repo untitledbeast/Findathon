@@ -13,7 +13,7 @@ export interface ProfileProps {
   socialDiscord?: string;
   skills?: string[];
   interests?: string[];
-  role: 'user' | 'organizer' | 'admin';
+  role: 'user' | 'organizer' | 'moderator' | 'admin';
   isFirstLogin?: boolean;
   onboardingComplete?: boolean;
   xpPoints?: number;
@@ -32,7 +32,7 @@ export class ProfileEntity extends Entity<ProfileProps> {
   get socialDiscord(): string { return this.props.socialDiscord || ''; }
   get skills(): string[] { return this.props.skills || []; }
   get interests(): string[] { return this.props.interests || []; }
-  get role(): 'user' | 'organizer' | 'admin' { return this.props.role; }
+  get role(): 'user' | 'organizer' | 'moderator' | 'admin' { return this.props.role; }
   get isFirstLogin(): boolean { return this.props.isFirstLogin ?? false; }
   get onboardingComplete(): boolean { return this.props.onboardingComplete ?? true; }
   get xpPoints(): number { return this.props.xpPoints || 0; }
