@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { Shield, LayoutDashboard, Inbox, List, Users, BarChart3, Star, ArrowLeft } from 'lucide-react';
+import { Shield, LayoutDashboard, Inbox, List, Users, BarChart3, Star, ArrowLeft, Zap } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth();
@@ -41,6 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const links = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/quick-add', label: 'Quick Add', icon: Zap, iconColor: 'text-yellow-400 fill-yellow-400/20' },
     { href: '/admin/submissions', label: 'Submissions', icon: Inbox, badge: stats?.pending },
     { href: '/admin/hackathons', label: 'All Hackathons', icon: List },
     ...(profile?.role === 'admin' ? [{ href: '/admin/users', label: 'Users', icon: Users }] : []),
@@ -59,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
-            <p className="text-xs text-slate-400 truncate">{profile?.full_name || 'Admin User'}</p>
+            <p className="text-xs text-slate-400 truncate">{profile?.fullName || 'Admin User'}</p>
             <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 uppercase tracking-wider">
               {profile?.role || 'admin'}
             </span>
@@ -80,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     : 'text-slate-300 hover:bg-slate-800'
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className={`w-5 h-5 ${link.iconColor || ''}`} />
                 <span className="flex-1">{link.label}</span>
                 {link.badge !== undefined && link.badge > 0 && (
                   <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-xs font-bold">

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { useAuthModal } from '@/components/AuthModal';
 import { useNotifications } from '@/hooks/useNotifications';
 import {
   Search,
@@ -15,9 +14,11 @@ import {
   Menu,
   X,
   ChevronDown,
-  FileCode2,
+  FileText,
+  Bookmark,
   Bell,
-  CheckCheck
+  CheckCheck,
+  ShieldCheck
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -28,8 +29,7 @@ interface NavbarProps {
 export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, signOut } = useAuth();
-  const { openAuthModal } = useAuthModal();
+  const { user, profile, role, loading, signInWithGoogle, signOut } = useAuth();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   const [scrolled, setScrolled] = useState(false);
@@ -41,38 +41,33 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
 
   // Scroll listener to increase glass opacity
   useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
-  const userName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
-  const userEmail = user?.email || '';
+  const avatarUrl = profile?.avatarUrl || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const userName = profile?.fullName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const userEmail = profile?.email || user?.email || '';
 
   const getInitials = (name: string) => {
     if (!name) return 'U';
     const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return name.slice(0, 2).toUpperCase();
   };
 
@@ -82,10 +77,16 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
     router.push('/');
   };
 
+  const handleActionOrSignIn = (action: () => void) => {
+    if (!user) {
+      signInWithGoogle();
+    } else {
+      action();
+    }
+  };
+
   return (
     <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-4xl">
-      
-      {/* FLOATING PILL NAVBAR CONTAINER */}
       <nav
         className={`glass-card rounded-full px-5 sm:px-6 py-2.5 sm:py-3 shadow-2xl transition-all duration-300 flex items-center justify-between gap-4 ${
           scrolled
@@ -93,7 +94,6 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
             : 'bg-[#0D1224]/60 border-purple-500/15'
         }`}
       >
-        
         {/* LEFT: BRAND LOGO */}
         <Link href="/" className="flex items-center gap-2 group shrink-0">
           <span className="text-purple-400 group-hover:rotate-12 transition-transform duration-300 text-lg">✦</span>
@@ -106,51 +106,22 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
         <div className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-medium">
           <Link
             href="/"
-            className={`transition-colors hover:text-white ${
-              pathname === '/' ? 'text-white font-semibold' : 'text-slate-400'
-            }`}
+            className={`transition-colors hover:text-white ${pathname === '/' ? 'text-white font-semibold' : 'text-slate-400'}`}
           >
             Discover
           </Link>
           <Link
             href="/categories"
-            className={`transition-colors hover:text-white ${
-              pathname?.startsWith('/categories') ? 'text-white font-semibold' : 'text-slate-400'
-            }`}
+            className={`transition-colors hover:text-white ${pathname?.startsWith('/categories') ? 'text-white font-semibold' : 'text-slate-400'}`}
           >
             Categories
           </Link>
           <Link
             href="/map"
-            className={`transition-colors hover:text-white flex items-center gap-1 ${
-              pathname === '/map' ? 'text-cyan-400 font-bold' : 'text-purple-300 hover:text-white'
-            }`}
+            className={`transition-colors hover:text-white flex items-center gap-1 ${pathname === '/map' ? 'text-cyan-400 font-bold' : 'text-purple-300 hover:text-white'}`}
           >
             <span>Map</span>
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-          </Link>
-
-          {onOpenSaved && (
-            <button
-              onClick={onOpenSaved}
-              className="text-slate-400 hover:text-white transition-colors flex items-center gap-1"
-            >
-              <span>Saved</span>
-              {savedCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-600 text-white font-bold font-mono-num">
-                  {savedCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          <Link
-            href="/submit"
-            className={`transition-colors hover:text-white ${
-              pathname === '/submit' ? 'text-white font-semibold' : 'text-slate-400'
-            }`}
-          >
-            Submit
           </Link>
           <Link
             href="/#about"
@@ -163,7 +134,6 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
         {/* RIGHT: SEARCH, SUBMIT PILL & AUTH */}
         <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
           
-          {/* Search trigger icon */}
           <button
             onClick={() => {
               if (pathname !== '/') router.push('/');
@@ -175,140 +145,128 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
             <Search className="w-4 h-4 text-purple-400" />
           </button>
 
-          {/* Notification Bell */}
-          {user && (
-            <div className="relative" ref={notifRef}>
-              <button
-                onClick={() => setNotifOpen(!notifOpen)}
-                className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors relative"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4 text-cyan-400" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                )}
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
-                )}
-              </button>
-
-              {notifOpen && (
-                <div className="absolute right-0 mt-3 w-80 rounded-2xl glass-card border border-purple-500/30 p-3 z-50 space-y-2 shadow-2xl animate-fade-in-up">
-                  <div className="flex items-center justify-between border-b border-purple-900/30 pb-2">
-                    <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <Bell className="w-3.5 h-3.5 text-cyan-400" /> Notifications
-                    </h4>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllRead}
-                        className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold flex items-center gap-1"
-                      >
-                        <CheckCheck className="w-3 h-3" /> Mark all read
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="max-h-64 overflow-y-auto space-y-1.5 scrollbar-thin">
-                    {notifications.length > 0 ? (
-                      notifications.map(n => (
-                        <div
-                          key={n.id}
-                          onClick={() => markRead(n.id)}
-                          className={`p-2.5 rounded-xl text-left transition-colors cursor-pointer space-y-0.5 border ${
-                            !n.isRead ? 'bg-purple-950/60 border-purple-500/30' : 'bg-slate-950/40 border-purple-900/20'
-                          }`}
-                        >
-                          <p className="text-xs font-bold text-white truncate">{n.title}</p>
-                          <p className="text-[11px] text-slate-300 line-clamp-2">{n.body}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="py-6 text-center text-xs text-slate-400">
-                        No notifications yet
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Submit Hackathon Small Pill Button */}
-          <Link
-            href="/submit"
-            className="aurora-border px-3.5 py-1.5 rounded-full text-xs font-semibold text-white hover:scale-105 active:scale-95 transition-all hidden sm:inline-flex items-center gap-1.5 shadow-md"
+          <button
+            onClick={() => handleActionOrSignIn(() => router.push('/submit'))}
+            className="aurora-border px-3.5 py-1.5 rounded-full text-xs font-semibold text-white hover:scale-105 active:scale-95 transition-all hidden sm:inline-flex items-center gap-1.5 shadow-md cursor-pointer"
           >
             <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
             <span>Submit Hackathon</span>
-          </Link>
+          </button>
 
-          {/* User Auth Avatar or Sign In Button */}
-          {!user ? (
+          {loading ? (
+            <div className="w-24 h-9 bg-slate-800 animate-pulse rounded-full" />
+          ) : !user ? (
             <button
-              onClick={openAuthModal}
+              onClick={signInWithGoogle}
               className="px-4 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-md transition-all hover:scale-105 active:scale-95"
             >
               Sign In
             </button>
           ) : (
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1.5 p-1 rounded-full border border-purple-500/30 hover:border-purple-400 transition-all bg-slate-950/60"
-              >
-                {avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    alt={userName}
-                    width={28}
-                    height={28}
-                    className="w-7 h-7 rounded-full object-cover ring-1 ring-purple-400/40"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
-                    {getInitials(userName)}
+            <div className="flex items-center gap-2">
+              {(role === 'admin' || role === 'moderator') && (
+                <Link
+                  href="/admin"
+                  className="hidden sm:block bg-red-600/20 text-red-400 border border-red-600/30 rounded-full px-3 py-1 text-xs font-medium hover:bg-red-600/30 transition-colors"
+                >
+                  Admin
+                </Link>
+              )}
+              
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-9 h-9 rounded-full overflow-hidden border border-purple-500/30 hover:border-purple-400 transition-all bg-slate-950/60"
+                >
+                  {avatarUrl ? (
+                    <Image
+                      src={avatarUrl}
+                      alt={userName}
+                      width={36}
+                      height={36}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                      {getInitials(userName)}
+                    </div>
+                  )}
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute right-0 top-12 w-64 bg-slate-900 rounded-2xl border border-purple-900/30 p-2 z-50 shadow-xl animate-fade-in-up">
+                    <div className="px-3 py-3 border-b border-slate-800 flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
+                        {avatarUrl ? (
+                          <Image src={avatarUrl} alt={userName} width={48} height={48} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-purple-600 text-white font-bold text-lg flex items-center justify-center">
+                            {getInitials(userName)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-sm font-bold text-white truncate">{userName}</p>
+                        <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+                        <div className="inline-block mt-1 bg-purple-600/20 text-purple-400 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize">
+                          {role || 'User'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="py-2 space-y-1">
+                      <Link
+                        href="/account?tab=dashboard"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                      >
+                        <UserIcon className="w-4 h-4 text-purple-400" />
+                        My Account
+                      </Link>
+
+                      <Link
+                        href="/account?tab=submissions"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                      >
+                        <FileText className="w-4 h-4 text-purple-400" />
+                        My Submissions
+                      </Link>
+
+                      <Link
+                        href="/account?tab=saved"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                      >
+                        <Bookmark className="w-4 h-4 text-purple-400" />
+                        Saved Hackathons
+                      </Link>
+
+                      {(role === 'admin' || role === 'moderator') && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-red-400" />
+                          <span className="text-red-400">Admin Panel</span>
+                        </Link>
+                      )}
+                    </div>
+
+                    <div className="border-t border-slate-800 pt-2">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-red-400 hover:bg-slate-800 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
                 )}
-                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Dropdown Menu */}
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-3 w-60 rounded-2xl glass-card border border-purple-500/30 p-2 z-50 space-y-1 shadow-2xl animate-fade-in-up">
-                  <div className="px-3 py-2 border-b border-purple-900/30">
-                    <p className="text-xs font-bold text-white truncate">{userName}</p>
-                    <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
-                  </div>
-
-                  <Link
-                    href="/account"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-purple-950/60 hover:text-purple-300 transition-colors"
-                  >
-                    <UserIcon className="w-4 h-4 text-purple-400" />
-                    <span>My Account</span>
-                  </Link>
-
-                  <Link
-                    href="/account?tab=submissions"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:bg-purple-950/60 hover:text-purple-300 transition-colors"
-                  >
-                    <FileCode2 className="w-4 h-4 text-purple-400" />
-                    <span>My Submissions</span>
-                  </Link>
-
-                  <div className="border-t border-purple-900/30 pt-1">
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-950/40 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -319,65 +277,48 @@ export default function Navbar({ savedCount = 0, onOpenSaved }: NavbarProps) {
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-
         </div>
-
       </nav>
 
       {/* MOBILE DROPDOWN MENU */}
       {mobileMenuOpen && (
         <div className="md:hidden mt-2 p-4 rounded-3xl glass-card border border-purple-500/30 space-y-3 animate-fade-in-up">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
-          >
+          <Link href="/" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white">
             Discover
           </Link>
-          <Link
-            href="/categories"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
-          >
+          <Link href="/categories" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white">
             Categories
           </Link>
-          <Link
-            href="/submit"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-purple-300 py-1.5 hover:text-white"
-          >
+          <button onClick={() => handleActionOrSignIn(() => { setMobileMenuOpen(false); router.push('/submit'); })} className="w-full text-left block text-xs font-bold text-purple-300 py-1.5 hover:text-white">
             Submit Hackathon
-          </Link>
-          {user && (
+          </button>
+          
+          {loading ? (
+             <div className="w-full h-8 bg-slate-800 animate-pulse rounded-md" />
+          ) : !user ? (
+            <button onClick={() => { setMobileMenuOpen(false); signInWithGoogle(); }} className="w-full text-left block text-xs font-bold text-white py-1.5">
+              Sign In
+            </button>
+          ) : (
             <>
-              <Link
-                href="/account"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
-              >
+              <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white">
                 My Account
               </Link>
-              <Link
-                href="/account?tab=submissions"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
-              >
+              <Link href="/account?tab=submissions" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white">
                 My Submissions
               </Link>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleSignOut();
-                }}
-                className="block text-xs font-bold text-rose-400 py-1.5 hover:text-rose-300"
-              >
+              {(role === 'admin' || role === 'moderator') && (
+                <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-red-400 py-1.5 hover:text-red-300">
+                  Admin Panel
+                </Link>
+              )}
+              <button onClick={() => { setMobileMenuOpen(false); handleSignOut(); }} className="w-full text-left block text-xs font-bold text-rose-400 py-1.5 hover:text-rose-300">
                 Sign Out
               </button>
             </>
           )}
         </div>
       )}
-
     </header>
   );
 }

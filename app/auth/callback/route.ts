@@ -1,61 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { createProfileModule } from '@/lib/composition';
-import { createRequestContext } from '@/lib/context/request-context';
+import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
-  const code = requestUrl.searchParams.get('code');
-  const redirectCookie = request.cookies.get('redirect_after_login')?.value;
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+  const next = searchParams.get('next') ?? '/'
 
   if (code) {
-    const { data: { session } } = await supabase.auth.exchangeCodeForSession(code);
-    if (session?.user) {
-      const user = session.user;
-      const { service: profileService } = createProfileModule();
-      const headers: Record<string, string | undefined> = {};
-      request.headers.forEach((val, key) => { headers[key] = val; });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (!error && data.user) {
+      // Ensure profile exists (upsert on login)
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        full_name: data.user.user_metadata?.full_name
+          ?? data.user.user_metadata?.name ?? '',
+        avatar_url: data.user.user_metadata?.avatar_url
+          ?? data.user.user_metadata?.picture ?? '',
+        email: data.user.email ?? '',
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'id',
+        ignoreDuplicates: false,
+      })
 
-      const context = createRequestContext(
-        {
-          id: user.id,
-          email: user.email || null,
-          fullName: user.user_metadata?.full_name || 'User',
-          avatarUrl: user.user_metadata?.avatar_url || null,
-          role: (user.user_metadata?.role as 'user' | 'organizer' | 'admin') || 'user'
-        },
-        headers
-      );
-
-      const profileResult = await profileService.getProfile(context, user.id);
-
-      if (!profileResult.ok) {
-        // Bootstrap profile if missing
-        await profileService.updateProfile(context, {
-          fullName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-          avatarUrl: user.user_metadata?.avatar_url || null,
-          isFirstLogin: true,
-          onboardingComplete: false
-        });
-        return NextResponse.redirect(new URL('/onboarding', request.url));
-      }
-
-      const profile = profileResult.value;
-
-      if (!profile.onboardingComplete || profile.isFirstLogin) {
-        return NextResponse.redirect(new URL('/onboarding', request.url));
-      }
-
-      if (profile.role === 'admin') {
-        return NextResponse.redirect(new URL('/admin', request.url));
-      }
-
-      const targetPath = redirectCookie && redirectCookie.startsWith('/') ? redirectCookie : '/account';
-      const response = NextResponse.redirect(new URL(targetPath, request.url));
-      response.cookies.delete('redirect_after_login');
-      return response;
+      // Redirect to account dashboard
+      return NextResponse.redirect(`${origin}/account`)
     }
   }
 
-  return NextResponse.redirect(new URL('/?auth=error', request.url));
+  // Error — redirect home
+  return NextResponse.redirect(`${origin}/?error=auth`)
 }

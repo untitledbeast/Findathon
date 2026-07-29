@@ -18,6 +18,7 @@ export interface AdminStatsDTO {
 }
 
 export class AdminHackathonRepository {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapToDTO(record: Record<string, any>): HackathonDTO {
     return {
       id: record.id,
@@ -106,6 +107,26 @@ export class AdminHackathonRepository {
       .single();
 
     if (error || !data) return null;
+    return this.mapToDTO(data);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public async create(hackathonData: any): Promise<HackathonDTO> {
+    const { data, error } = await adminClient
+      .from('hackathons')
+      .insert([{
+        ...hackathonData,
+        status: 'approved', // Admin Quick Add is always approved
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Admin create hackathon error:', error);
+      throw new Error(error.message);
+    }
     return this.mapToDTO(data);
   }
 

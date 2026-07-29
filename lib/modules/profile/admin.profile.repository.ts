@@ -2,6 +2,7 @@ import { adminClient } from '@/lib/supabase-admin';
 import { ProfileDTO } from './application/dtos/ProfileDTO';
 
 export class AdminProfileRepository {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapToDTO(record: Record<string, any>): ProfileDTO {
     return {
       id: record.id,

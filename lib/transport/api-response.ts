@@ -18,6 +18,7 @@ export interface ApiResponse<T> {
 import { NextResponse } from 'next/server';
 import { formatError as baseFormatError } from '@/lib/errors';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function formatResponse(data: any) {
   return NextResponse.json({ success: true, data, ...data?.meta });
 }

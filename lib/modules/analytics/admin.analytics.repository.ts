@@ -4,6 +4,7 @@ export interface AnalyticsEventDTO {
   id: string;
   event: string;
   hackathonId?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>;
   createdAt: string;
 }
