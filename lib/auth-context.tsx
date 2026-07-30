@@ -123,12 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, currentSession) => {
         if (!isMounted) return
 
-        // INITIAL_SESSION fires synchronously when the listener is registered.
-        // Handling it here causes setLoading(false) to be called before React
-        // finishes hydration, producing a server/client HTML mismatch.
-        // initAuth() above owns all initial state — skip this event here.
-        if (event === 'INITIAL_SESSION') return
-
         console.log('[AuthContext] auth event:', event)
 
         setSession(currentSession)
@@ -139,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setProfile(null)
         }
+        setLoading(false)
       }
     )
 

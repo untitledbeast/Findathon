@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
     // We can't fully decode/verify JWT here in middleware without additional setup,
     // but we can check if a session cookie exists. Role validation happens in layout/API.
     const hasSessionCookie = Array.from(request.cookies.getAll()).some(c =>
-      c.name.startsWith('sb-') && c.name.endsWith('-auth-token')
+      c.name.startsWith('sb-') && c.name.includes('-auth-token')
     );
 
     if (!hasSessionCookie && !supabaseToken) {

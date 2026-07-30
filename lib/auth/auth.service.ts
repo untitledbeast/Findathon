@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { AuthenticationError } from '@/lib/errors';
 import { USER_ROLES, UserRole } from '@/constants/roles';
 
@@ -12,12 +13,21 @@ export interface UserDTO {
 
 export const AuthService = {
   async getSession() {
+    if (typeof window === 'undefined') {
+      const serverClient = await createSupabaseServerClient();
+      const { data } = await serverClient.auth.getSession();
+      return data.session;
+    }
     const { data } = await supabase.auth.getSession();
     return data.session;
   },
 
   async getUser(): Promise<UserDTO | null> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const client = typeof window === 'undefined'
+      ? await createSupabaseServerClient()
+      : supabase;
+
+    const { data: { user } } = await client.auth.getUser();
     if (!user) return null;
 
     const role = await this.getUserRole(user.id);
@@ -33,7 +43,11 @@ export const AuthService = {
 
   async getUserRole(userId: string): Promise<UserRole> {
     try {
-      const { data } = await supabase
+      const client = typeof window === 'undefined'
+        ? await createSupabaseServerClient()
+        : supabase;
+
+      const { data } = await client
         .from('profiles')
         .select('role')
         .eq('id', userId)

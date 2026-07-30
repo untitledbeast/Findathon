@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           role: 'user', // default; existing admins keep their role via onConflict
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'id', ignoreDuplicates: false }
+        { onConflict: 'id', ignoreDuplicates: true }
       )
 
     if (profileError) {
