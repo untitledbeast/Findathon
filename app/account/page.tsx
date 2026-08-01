@@ -262,7 +262,17 @@ export default function AccountDashboardPage({ searchParams }: { searchParams?: 
   }
 
   if (authLoading || !user || !profile) {
-    return <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center"><div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div></div>;
+    return (
+      <div className="min-h-screen bg-[#0b0f19] flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-slate-400 text-sm">Loading your dashboard...</p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -276,7 +286,7 @@ export default function AccountDashboardPage({ searchParams }: { searchParams?: 
           <div className="flex flex-col items-center text-center pb-6 border-b border-purple-900/30">
             <div className="w-20 h-20 rounded-full border border-purple-500/50 overflow-hidden mb-3">
               {profile.avatarUrl ? (
-                <Image src={profile.avatarUrl} alt={profile.fullName} width={80} height={80} className="w-full h-full object-cover" />
+                <Image src={profile.avatarUrl} alt={profile.fullName || 'User'} width={80} height={80} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-purple-900 flex items-center justify-center text-2xl font-bold">{profile.fullName?.[0] || 'U'}</div>
               )}
@@ -418,7 +428,11 @@ export default function AccountDashboardPage({ searchParams }: { searchParams?: 
 
               <form onSubmit={handleProfileSave} className="bg-slate-900/60 border border-purple-900/30 rounded-2xl p-6 space-y-6">
                 <div className="flex items-center gap-4">
-                  <Image src={profile.avatarUrl || '/'} alt="Avatar" width={64} height={64} className="rounded-full bg-slate-800" />
+                  {profile.avatarUrl ? (
+                    <Image src={profile.avatarUrl} alt="Avatar" width={64} height={64} className="rounded-full bg-slate-800 object-cover" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-purple-900 flex items-center justify-center text-xl font-bold">{profile.fullName?.[0] || 'U'}</div>
+                  )}
                   <div className="text-xs text-slate-400">Profile photo synced from Google.<br/>It cannot be changed here.</div>
                 </div>
 
@@ -661,7 +675,7 @@ export default function AccountDashboardPage({ searchParams }: { searchParams?: 
                   <h3 className="font-bold text-lg mb-4">Account Settings</h3>
                   <div className="mb-4">
                     <label className="block text-slate-300 text-sm font-medium mb-1">Email Address</label>
-                    <input type="text" disabled value={profile.email} className="w-full md:w-1/2 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl px-4 py-3 cursor-not-allowed" />
+                    <input type="text" disabled value={profile.email || user?.email || ''} className="w-full md:w-1/2 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl px-4 py-3 cursor-not-allowed" />
                     <p className="text-xs text-slate-500 mt-1">Your email is managed by Google</p>
                   </div>
                   <div>

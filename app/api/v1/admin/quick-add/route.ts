@@ -29,10 +29,7 @@ export async function POST(req: NextRequest) {
     const user = await AuthService.getUser();
     if (!user) return formatError(new AuthenticationError('Authentication required'));
 
-    // Verify role is admin or moderator
-    const { getProfile } = await import('@/lib/supabase');
-    const profile = await getProfile(user.id);
-    if (!profile || (profile.role !== 'admin' && profile.role !== 'moderator')) {
+    if (!['admin', 'moderator'].includes(user.role)) {
       return formatError(new PermissionError('Admin or moderator access required'));
     }
 

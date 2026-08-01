@@ -197,6 +197,7 @@ export interface HackathonDatabaseRow {
   difficulty?: string | null;
   has_certificate?: boolean | null;
   is_hiring?: boolean | null;
+  source?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
