@@ -35,14 +35,16 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('[auth/callback] Exchange error:', error.message)
-    return NextResponse.redirect(`${origin}/?error=auth_failed`)
+    return NextResponse.redirect(`${origin}/?error=auth_failed&msg=${encodeURIComponent(error.message)}`)
   }
 
-  if (data.user) {
-    // Upsert profile — ensure DB record exists for this user.
-    // onConflict: 'id' + ignoreDuplicates: false = UPDATE on existing rows,
-    // which means avatar/email stay fresh but role is NOT overwritten.
-    const { error: profileError } = await supabase
+  if (!data?.user) {
+    return NextResponse.redirect(`${origin}/?error=no_user`)
+  }
+
+  // Safely upsert profile — only fields guaranteed to exist in schema
+  try {
+    await supabase
       .from('profiles')
       .upsert(
         {
@@ -50,25 +52,20 @@ export async function GET(request: NextRequest) {
           full_name:
             data.user.user_metadata?.full_name ??
             data.user.user_metadata?.name ??
-            '',
+            data.user.email?.split('@')[0] ??
+            'User',
           avatar_url:
             data.user.user_metadata?.avatar_url ??
             data.user.user_metadata?.picture ??
-            '',
-          email: data.user.email ?? '',
-          role: 'user', // default; existing admins keep their role via onConflict
+            null,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'id', ignoreDuplicates: true }
+        { onConflict: 'id', ignoreDuplicates: false }
       )
-
-    if (profileError) {
-      console.error('[auth/callback] Profile upsert error:', profileError.message)
-      // Don't fail auth for profile errors — user still gets redirected
-    }
-
-    return NextResponse.redirect(`${origin}${next}`)
+  } catch (profileErr) {
+    // Never block auth for profile errors
+    console.error('[auth/callback] Profile upsert exception:', profileErr)
   }
 
-  return NextResponse.redirect(`${origin}/?error=no_user`)
+  return NextResponse.redirect(`${origin}${next}`)
 }
