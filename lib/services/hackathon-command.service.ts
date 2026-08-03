@@ -43,6 +43,7 @@ export class HackathonCommandService {
       socialLinkedin?: string | null;
       socialDiscord?: string | null;
       socialInstagram?: string | null;
+      submittedBy?: string | null;
     }
   ): Promise<Result<HackathonDTO, BaseError>> {
     try {

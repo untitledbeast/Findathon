@@ -29,7 +29,8 @@ export const submitHackathonSchema = z.object({
   socialTwitter: z.string().optional(),
   socialLinkedin: z.string().optional(),
   socialDiscord: z.string().optional(),
-  socialInstagram: z.string().optional()
+  socialInstagram: z.string().optional(),
+  submittedBy: z.string().optional()
 });
 
 export const editHackathonSchema = submitHackathonSchema.partial().extend({

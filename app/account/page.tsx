@@ -109,11 +109,18 @@ export default function AccountDashboardPage({
             .select('*, hackathons(*)')
             .eq('user_id', user.id)
             .order('saved_at', { ascending: false }),
-          supabase
-            .from('hackathons')
-            .select('id, title, status, start_date, end_date, cover_image_url, location_city, is_online, tags, organizer')
-            .eq('submitted_by', user.id)
-            .order('created_at', { ascending: false }),
+          (async () => {
+            try {
+              const res = await supabase
+                .from('hackathons')
+                .select('id, title, status, start_date, end_date, cover_image_url, location_city, is_online, tags, organizer')
+                .eq('submitted_by', user.id)
+                .order('created_at', { ascending: false });
+              return res;
+            } catch {
+              return { data: [], error: null };
+            }
+          })(),
           supabase
             .from('notifications')
             .select('*')

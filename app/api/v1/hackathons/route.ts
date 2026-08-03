@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     const commandService = createHackathonCommandService();
     const result = await commandService.create(context, {
       ...validatedData,
+      submittedBy: user.id,
       registrationDeadline: validatedData.registrationDeadline || validatedData.startDate
     });
 

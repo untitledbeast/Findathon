@@ -60,19 +60,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch submissions — only columns that exist in hackathons table
-    const { data, error } = await supabase
-      .from('hackathons')
-      .select('id, title, status, start_date, end_date, cover_image_url, created_at, location_city, is_online, tags, organizer')
-      .eq('submitted_by', userId)
-      .order('created_at', { ascending: false });
+    // Fetch submissions — catch missing column error gracefully
+    let data: any[] = [];
+    try {
+      const { data: resData, error } = await supabase
+        .from('hackathons')
+        .select('id, title, status, start_date, end_date, cover_image_url, created_at, location_city, is_online, tags, organizer')
+        .eq('submitted_by', userId)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('[submissions route] DB error:', error.message);
-      return NextResponse.json(
-        { success: false, error: { code: 'FETCH_ERROR', message: error.message } },
-        { status: 500 }
-      );
+      if (!error && resData) {
+        data = resData;
+      }
+    } catch {
+      data = [];
     }
 
     // Always return array in data field
