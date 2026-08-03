@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, signInWithGoogle, signOut } from './supabase';
+import { supabase } from './supabase';
 
 // Match EXACTLY what the DB returns (snake_case)
 export interface UserProfile {
@@ -112,6 +112,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) await fetchProfile(user);
   }, [user, fetchProfile]);
 
+  const handleSignInWithGoogle = useCallback(async () => {
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    return supabase.auth.signOut();
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -156,8 +169,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       role: profile?.role || 'user',
       loading,
-      signInWithGoogle,
-      signOut,
+      signInWithGoogle: handleSignInWithGoogle,
+      signOut: handleSignOut,
       refreshProfile,
     }}>
       {children}

@@ -60,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
-            <p className="text-xs text-slate-400 truncate">{profile?.fullName || 'Admin User'}</p>
+            <p className="text-xs text-slate-400 truncate">{profile?.full_name || (profile as any)?.fullName || 'Admin User'}</p>
             <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 uppercase tracking-wider">
               {profile?.role || 'admin'}
             </span>
