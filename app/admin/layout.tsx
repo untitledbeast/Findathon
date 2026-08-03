@@ -44,7 +44,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/quick-add', label: 'Quick Add', icon: Zap, iconColor: 'text-yellow-400 fill-yellow-400/20' },
     { href: '/admin/submissions', label: 'Submissions', icon: Inbox, badge: stats?.pending },
     { href: '/admin/hackathons', label: 'All Hackathons', icon: List },
-    ...(profile?.role === 'admin' ? [{ href: '/admin/users', label: 'Users', icon: Users }] : []),
+    ...(profile?.role === 'admin' ? [
+      { href: '/admin?tab=admins', label: 'Manage Admins', icon: Shield },
+      { href: '/admin/users', label: 'Users', icon: Users }
+    ] : []),
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/reviews', label: 'Reviews', icon: Star },
   ];
