@@ -2,35 +2,36 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase, signInWithGoogle, signOut } from './supabase';
 
-// Profile type matching the profiles table columns (camelCase for client usage)
-export interface Profile {
+// Match EXACTLY what the DB returns (snake_case)
+export interface UserProfile {
   id: string;
-  fullName: string | null;
-  avatarUrl: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
   bio: string | null;
   organization: string | null;
   phone: string | null;
   website: string | null;
-  socialTwitter: string | null;
-  socialLinkedin: string | null;
-  socialInstagram: string | null;
-  socialDiscord: string | null;
-  role: string | null;
-  githubUrl: string | null;
-  portfolioUrl: string | null;
+  social_twitter: string | null;
+  social_linkedin: string | null;
+  social_instagram: string | null;
+  social_discord: string | null;
+  role: 'user' | 'organizer' | 'moderator' | 'admin' | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  xp_points: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  // Virtual field — from auth.users, not profiles table
   email?: string | null;
-  xpPoints: number;
-  createdAt?: string | null;
-  updatedAt?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
-  role: string | null;
+  profile: UserProfile | null;
+  role: string;
   loading: boolean;
   signInWithGoogle: () => Promise<unknown>;
   signOut: () => Promise<unknown>;
@@ -41,121 +42,85 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   profile: null,
-  role: null,
+  role: 'user',
   loading: true,
   signInWithGoogle: async () => {},
   signOut: async () => {},
   refreshProfile: async () => {},
 });
 
-// Map snake_case DB columns to camelCase Profile fields
-function mapDbRowToProfile(row: Record<string, unknown>, authUser?: User | null): Profile {
-  const meta = authUser?.user_metadata || {};
-  return {
-    id: row.id as string,
-    fullName: (row.full_name as string) || meta.full_name || meta.name || null,
-    avatarUrl: (row.avatar_url as string) || meta.avatar_url || meta.picture || null,
-    bio: (row.bio as string) || null,
-    organization: (row.organization as string) || null,
-    phone: (row.phone as string) || null,
-    website: (row.website as string) || null,
-    socialTwitter: (row.social_twitter as string) || null,
-    socialLinkedin: (row.social_linkedin as string) || null,
-    socialInstagram: (row.social_instagram as string) || null,
-    socialDiscord: (row.social_discord as string) || null,
-    role: (row.role as string) || 'user',
-    githubUrl: (row.github_url as string) || null,
-    portfolioUrl: (row.portfolio_url as string) || null,
-    email: authUser?.email || null,
-    xpPoints: (row.xp_points as number) || 0,
-    createdAt: (row.created_at as string) || null,
-    updatedAt: (row.updated_at as string) || null,
-  };
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const buildFallbackProfile = useCallback((authUser: User): Profile => {
-    const meta = authUser.user_metadata || {};
-    return {
-      id: authUser.id,
-      fullName: meta.full_name || meta.name || authUser.email?.split('@')[0] || 'User',
-      avatarUrl: meta.avatar_url || meta.picture || null,
-      bio: null,
-      organization: null,
-      phone: null,
-      website: null,
-      socialTwitter: null,
-      socialLinkedin: null,
-      socialInstagram: null,
-      socialDiscord: null,
-      role: 'user',
-      githubUrl: null,
-      portfolioUrl: null,
-      email: authUser.email || null,
-      xpPoints: 0,
-    };
-  }, []);
+  const buildFallback = useCallback((u: User): UserProfile => ({
+    id: u.id,
+    full_name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'User',
+    avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+    bio: null,
+    organization: null,
+    phone: null,
+    website: null,
+    social_twitter: null,
+    social_linkedin: null,
+    social_instagram: null,
+    social_discord: null,
+    role: 'user',
+    github_url: null,
+    portfolio_url: null,
+    xp_points: 0,
+    created_at: null,
+    updated_at: null,
+    email: u.email || null,
+  }), []);
 
-  const fetchProfile = useCallback(async (authUser: User) => {
+  const fetchProfile = useCallback(async (u: User) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', authUser.id)
+        .eq('id', u.id)
         .maybeSingle();
 
       if (error) {
-        console.warn('[AuthContext] Profile fetch error:', error.message);
-        setProfile(buildFallbackProfile(authUser));
+        console.warn('[Auth] profile fetch error:', error.message);
+        setProfile({ ...buildFallback(u), email: u.email || null });
         return;
       }
 
       if (data) {
-        setProfile(mapDbRowToProfile(data, authUser));
+        setProfile({
+          ...data,
+          // Prefer Google avatar if DB is empty
+          avatar_url: data.avatar_url || u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+          full_name: data.full_name || u.user_metadata?.full_name || u.user_metadata?.name || null,
+          // Inject email from auth (not in profiles table)
+          email: u.email || null,
+        } as UserProfile);
       } else {
-        // Profile row doesn't exist yet — use fallback
-        setProfile(buildFallbackProfile(authUser));
+        setProfile({ ...buildFallback(u), email: u.email || null });
       }
     } catch (err) {
-      console.error('[AuthContext] fetchProfile exception:', err);
-      setProfile(buildFallbackProfile(authUser));
+      console.error('[Auth] fetchProfile exception:', err);
+      setProfile({ ...buildFallback(u), email: u.email || null });
     }
-  }, [buildFallbackProfile]);
+  }, [buildFallback]);
 
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user);
   }, [user, fetchProfile]);
 
-  const handleSignInWithGoogle = useCallback(async () => {
-    return supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-  }, []);
-
-  const handleSignOut = useCallback(async () => {
-    return supabase.auth.signOut();
-  }, []);
-
   useEffect(() => {
     let mounted = true;
 
-    // Step 1: Get initial session from cookies (middleware ensures this works)
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
-
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-
-      if (initialSession?.user) {
-        fetchProfile(initialSession.user).finally(() => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user).finally(() => {
           if (mounted) setLoading(false);
         });
       } else {
@@ -163,22 +128,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Step 2: Listen for auth state changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!mounted) return;
-
-        console.log('[AuthContext] auth event:', event);
-
+        console.log('[Auth] event:', event);
         setSession(newSession);
         setUser(newSession?.user ?? null);
-
         if (newSession?.user) {
           await fetchProfile(newSession.user);
         } else {
           setProfile(null);
         }
-
         setLoading(false);
       }
     );
@@ -190,25 +150,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchProfile]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        role: profile?.role ?? null,
-        loading,
-        signInWithGoogle: handleSignInWithGoogle,
-        signOut: handleSignOut,
-        refreshProfile,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      session,
+      profile,
+      role: profile?.role || 'user',
+      loading,
+      signInWithGoogle,
+      signOut,
+      refreshProfile,
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+  return useContext(AuthContext);
 }
