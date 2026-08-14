@@ -62,6 +62,7 @@ export class HackathonMapper {
 
   public static dtoToRow(dto: Partial<HackathonDTO>): Record<string, unknown> {
     const row: Record<string, unknown> = {};
+    if (dto.id !== undefined) row.id = dto.id;
     if (dto.title !== undefined) row.title = dto.title;
     if (dto.tagline !== undefined) row.tagline = dto.tagline;
     if (dto.description !== undefined) row.description = dto.description;
@@ -102,7 +103,26 @@ export class HackathonMapper {
     if (dto.difficulty !== undefined) row.difficulty = dto.difficulty;
     if (dto.hasCertificate !== undefined) row.has_certificate = dto.hasCertificate;
     if (dto.isHiring !== undefined) row.is_hiring = dto.isHiring;
-    return row;
+
+    // Filter against known columns supported in Postgres schema
+    const DB_COLUMNS = new Set([
+      'id', 'title', 'description', 'start_date', 'end_date',
+      'location_city', 'location_college', 'is_online', 'tags',
+      'register_url', 'organizer', 'cover_image_url', 'status',
+      'created_at', 'is_featured', 'featured_order',
+      'view_count', 'save_count', 'click_count', 'avg_rating',
+      'review_count', 'rejection_reason', 'reviewed_by', 'reviewed_at',
+      'submitted_by'
+    ]);
+
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(row)) {
+      if (DB_COLUMNS.has(key) && value !== undefined) {
+        sanitized[key] = value;
+      }
+    }
+
+    return sanitized;
   }
 
   public static dtoToEntity(dto: HackathonDTO): HackathonEntity {

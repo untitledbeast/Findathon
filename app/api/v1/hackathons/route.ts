@@ -64,7 +64,22 @@ export async function POST(req: NextRequest) {
     checkRateLimit(`submit:${user.id}`, 5, 3600000);
 
     const body = await req.json();
+
+    // Support payload field aliases if sent by client
+    if (body.registrationUrl && !body.registerUrl) {
+      body.registerUrl = body.registrationUrl;
+    }
+    if (body.coverImage && !body.coverImageUrl) {
+      body.coverImageUrl = body.coverImage;
+    }
+
     const validatedData = validate(submitHackathonSchema, body);
+
+    const organizer = (validatedData.organizer && validatedData.organizer.trim().length > 0)
+      ? validatedData.organizer
+      : (validatedData.contactName && validatedData.contactName.trim().length > 0)
+      ? validatedData.contactName
+      : (user.user_metadata?.full_name || user.email?.split('@')[0] || 'Community Organizer');
 
     const headers: Record<string, string | undefined> = {};
     req.headers.forEach((value, key) => { headers[key] = value; });
@@ -73,6 +88,8 @@ export async function POST(req: NextRequest) {
     const commandService = createHackathonCommandService();
     const result = await commandService.create(context, {
       ...validatedData,
+      registerUrl: validatedData.registerUrl,
+      organizer,
       submittedBy: user.id,
       registrationDeadline: validatedData.registrationDeadline || validatedData.startDate
     });

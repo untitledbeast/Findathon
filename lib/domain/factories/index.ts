@@ -50,7 +50,9 @@ export class HackathonFactory {
     socialInstagram?: string | null;
     submittedBy?: string | null;
   }): HackathonEntity {
-    const id = `hack_${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+    const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, '0')}`;
     const slug = new Slug(input.title);
     const dateRange = new DateRange(input.startDate, input.endDate);
     const registrationWindow = new RegistrationWindow(input.registrationDeadline, dateRange);

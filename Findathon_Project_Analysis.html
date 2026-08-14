@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Findathon — Complete Project Analysis & Architecture Document</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0e1a;
+    color: #e2e8f0;
+    line-height: 1.7;
+    font-size: 13px;
+    padding: 0;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 50px;
+}
+
+/* Cover Page */
+.cover {
+    text-align: center;
+    padding: 100px 40px 80px;
+    border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+    margin-bottom: 40px;
+    background: linear-gradient(180deg, rgba(139,92,246,0.08) 0%, transparent 100%);
+    page-break-after: always;
+}
+
+.cover h1 {
+    font-size: 42px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #8B5CF6, #4CC9F0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+    letter-spacing: -1px;
+}
+
+.cover .subtitle {
+    font-size: 18px;
+    color: #94a3b8;
+    font-weight: 400;
+    margin-bottom: 30px;
+}
+
+.cover .meta {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 2;
+}
+
+.cover .badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 100px;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #a78bfa;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+}
+
+/* Headings */
+h1 {
+    font-size: 28px;
+    font-weight: 900;
+    color: #f1f5f9;
+    margin: 48px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(139, 92, 246, 0.25);
+    letter-spacing: -0.5px;
+    page-break-after: avoid;
+}
+
+h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #e2e8f0;
+    margin: 36px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+    page-break-after: avoid;
+}
+
+h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #c4b5fd;
+    margin: 24px 0 8px;
+    page-break-after: avoid;
+}
+
+h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #a78bfa;
+    margin: 16px 0 6px;
+}
+
+/* Paragraphs */
+p {
+    margin: 8px 0;
+    color: #cbd5e1;
+}
+
+/* Links */
+a {
+    color: #818cf8;
+    text-decoration: none;
+}
+
+/* Lists */
+ul {
+    margin: 8px 0 8px 24px;
+    padding: 0;
+}
+
+li {
+    margin: 4px 0;
+    color: #cbd5e1;
+    line-height: 1.7;
+}
+
+li code {
+    background: rgba(139, 92, 246, 0.15);
+    color: #c4b5fd;
+}
+
+/* Tables */
+.table-wrapper {
+    overflow-x: auto;
+    margin: 16px 0;
+    border-radius: 12px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+thead {
+    background: rgba(139, 92, 246, 0.12);
+}
+
+th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 700;
+    color: #a78bfa;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+td {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+    color: #cbd5e1;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+/* Code */
+code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(30, 41, 59, 0.8);
+    color: #7dd3fc;
+    border: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+pre {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 14px 0;
+    page-break-inside: avoid;
+}
+
+pre code {
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.6;
+}
+
+/* Blockquote */
+blockquote {
+    border-left: 3px solid #8B5CF6;
+    padding: 10px 16px;
+    margin: 14px 0;
+    background: rgba(139, 92, 246, 0.06);
+    border-radius: 0 8px 8px 0;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Alerts */
+.alert {
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin: 16px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    page-break-inside: avoid;
+}
+
+.alert-important {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: #fbbf24;
+}
+
+.alert-caution {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+}
+
+/* Horizontal Rule */
+hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+    margin: 32px 0;
+}
+
+/* Strong */
+strong {
+    color: #f1f5f9;
+    font-weight: 700;
+}
+
+/* Emoji */
+em {
+    font-style: italic;
+    color: #94a3b8;
+}
+
+/* Print styles */
+@media print {
+    body {
+        background: white;
+        color: #1e293b;
+        font-size: 11px;
+    }
+
+    .container {
+        padding: 20px 30px;
+    }
+
+    .cover {
+        background: none;
+        border-bottom: 2px solid #8B5CF6;
+    }
+
+    .cover h1 {
+        -webkit-text-fill-color: #8B5CF6;
+        color: #8B5CF6;
+    }
+
+    .cover .subtitle {
+        color: #64748b;
+    }
+
+    h1 {
+        color: #1e293b;
+        border-bottom-color: #8B5CF6;
+    }
+
+    h2 {
+        color: #334155;
+        border-bottom-color: #c4b5fd;
+    }
+
+    h3 {
+        color: #7c3aed;
+    }
+
+    h4 {
+        color: #7c3aed;
+    }
+
+    p, li, td {
+        color: #475569;
+    }
+
+    code {
+        background: #f1f5f9;
+        color: #7c3aed;
+        border-color: #e2e8f0;
+    }
+
+    pre {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+    }
+
+    pre code {
+        color: #475569;
+    }
+
+    th {
+        color: #7c3aed;
+        background: #f5f3ff;
+    }
+
+    .table-wrapper {
+        border-color: #e2e8f0;
+    }
+
+    td {
+        border-bottom-color: #f1f5f9;
+    }
+
+    .alert-important {
+        background: #fffbeb;
+        border-color: #f59e0b;
+        color: #92400e;
+    }
+
+    .alert-caution {
+        background: #fef2f2;
+        border-color: #ef4444;
+        color: #991b1b;
+    }
+
+    blockquote {
+        background: #f5f3ff;
+        color: #64748b;
+    }
+
+    strong {
+        color: #1e293b;
+    }
+
+    a {
+        color: #7c3aed;
+    }
+
+    .cover .badge {
+        background: #f5f3ff;
+        border-color: #c4b5fd;
+        color: #7c3aed;
+    }
+}
+
+@page {
+    size: A4;
+    margin: 15mm 12mm;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Cover Page -->
+<div class="cover">
+    <div class="badge">Confidential • AI Agent Handoff Document</div>
+    <h1 style="font-size: 42px; margin-bottom: 16px;">✦ Findathon</h1>
+    <div class="subtitle">Complete Project Analysis & Architecture Document</div>
+    <div class="meta">
+        <strong>Generated:</strong> August 14, 2026<br>
+        <strong>Purpose:</strong> Comprehensive context for AI agent handoff (Claude / ChatGPT / Gemini)<br>
+        <strong>Project URL:</strong> <a href="https://findathon.vercel.app">findathon.vercel.app</a><br>
+        <strong>Tech Stack:</strong> Next.js 16 • React 19 • Supabase • TypeScript • Leaflet • Tailwind CSS 4<br>
+        <strong>Total Files:</strong> ~120+ source files • 20+ database tables • 16 API endpoints<br>
+        <strong>Current Phase:</strong> Late Phase 2 / Early Phase 3 (DDD Architecture Refactor)
+    </div>
+</div>
+
+<h1>Findathon — Complete Project Analysis & Architecture Document</h1>
+<blockquote>**Generated**: August 14, 2026</blockquote>
+<blockquote>**Purpose**: Comprehensive context document for AI agent handoff (Claude / ChatGPT / Gemini)</blockquote>
+<blockquote>**Project URL**: `https://findathon.vercel.app`</blockquote>
+<hr>
+<h2>1. Project Overview</h2>
+<p><strong>Findathon</strong> is a <strong>hackathon discovery and aggregation platform</strong> — think "Product Hunt meets Google Maps for hackathons". It allows users to discover, search, filter, compare, bookmark, and submit hackathons worldwide. The platform focuses primarily on the Indian hackathon ecosystem but supports global events.</p>
+<p><strong>Core Value Proposition</strong>: A single unified platform where developers can find hackathons by city, college, technology, prize pool, or natural language queries — with an interactive map, spotlight search (Cmd+K), and personalized recommendations.</p>
+<hr>
+<h2>2. Technology Stack</h2>
+<div class="table-wrapper"><table>
+<thead><tr><th>Layer</th><th>Technology</th><th>Version</th></tr></thead>
+<tbody>
+<tr><td>**Framework**</td><td>Next.js (App Router)</td><td>16.2.12</td></tr>
+<tr><td>**Language**</td><td>TypeScript</td><td>5.x</td></tr>
+<tr><td>**UI Library**</td><td>React</td><td>19.2.8</td></tr>
+<tr><td>**Styling**</td><td>Tailwind CSS 4 + Custom CSS</td><td>4.x</td></tr>
+<tr><td>**Database**</td><td>Supabase (PostgreSQL)</td><td>—</td></tr>
+<tr><td>**Auth**</td><td>Supabase Auth (Google OAuth)</td><td>—</td></tr>
+<tr><td>**ORM/Client**</td><td>@supabase/ssr + @supabase/supabase-js</td><td>0.12.4 / 2.110.8</td></tr>
+<tr><td>**Maps**</td><td>Leaflet + React-Leaflet</td><td>1.9.4 / 5.0.0</td></tr>
+<tr><td>**Icons**</td><td>Lucide React</td><td>1.25.0</td></tr>
+<tr><td>**Monitoring**</td><td>Sentry (@sentry/nextjs)</td><td>10.68.0</td></tr>
+<tr><td>**DB Extensions**</td><td>PostGIS, pg_trgm, unaccent</td><td>—</td></tr>
+<tr><td>**Fonts**</td><td>Inter (body) + JetBrains Mono (code/numbers)</td><td>Google Fonts</td></tr>
+<tr><td>**Deploy Target**</td><td>Vercel</td><td>—</td></tr>
+</tbody></table></div>
+<hr>
+<h2>3. Current Project Phase</h2>
+<div class="alert alert-important"><strong>⚠️ IMPORTANT</strong><br>The project is currently in **late Phase 2 / early Phase 3** of development.</div>
+<h3>Phase Breakdown:</h3>
+<div class="table-wrapper"><table>
+<thead><tr><th>Phase</th><th>Status</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td>**Phase 1** — Core MVP</td><td>✅ Complete</td><td>Homepage, hackathon listing, search, card UI, basic CRUD</td></tr>
+<tr><td>**Phase 2** — Enhanced Features</td><td>✅ Complete</td><td>Map view, Spotlight search (Cmd+K), admin panel, auth (Google OAuth), submit flow, hackathon detail pages, bookmarks, reviews, categories, onboarding, compare drawer</td></tr>
+<tr><td>**Phase 3A** — Architecture Refactor</td><td>✅ Complete</td><td>Layered DDD architecture, domain entities, value objects, repositories, CQRS (command/query services), typed DTOs, error handling</td></tr>
+<tr><td>**Phase 3B** — Domain Events</td><td>🔲 Not Started</td><td>Event bus is typed but **INERT** — no handlers wired yet</td></tr>
+<tr><td>**Phase 3C** — Feature Flags</td><td>🔲 Not Started</td><td>Feature flag provider exists as a typed contract but is INERT</td></tr>
+<tr><td>**Phase 3D** — Notifications & Image Pipeline</td><td>🔲 Not Started</td><td>Notification dispatcher and image pipeline service exist as INERT contracts</td></tr>
+<tr><td>**Phase 4** — Production Hardening</td><td>🔲 Not Started</td><td>Caching, CDN, performance optimization, full test coverage</td></tr>
+</tbody></table></div>
+<hr>
+<h2>4. Architecture</h2>
+<h3>4.1 High-Level Architecture (Layered DDD)</h3>
+<pre><code class="language-">Browser UI → Custom Hooks → API Routes (/api/v1/*) → Domain Services → Pure Repositories → Supabase DB</code></pre>
+<h3>4.2 Layer Responsibilities</h3>
+<div class="table-wrapper"><table>
+<thead><tr><th>Layer</th><th>Location</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td>**UI Components**</td><td>`components/`</td><td>React components — Navbar, HackathonCard, CompareDrawer, AuthModal, UniversalSearch, hackathon-detail subcomponents</td></tr>
+<tr><td>**Pages**</td><td>`app/`</td><td>Next.js App Router pages — homepage, hackathons/[id], map, categories, submit, admin, profile, onboarding, account, organizers, universities</td></tr>
+<tr><td>**Custom Hooks**</td><td>`hooks/`</td><td>16 hooks — useSearch, useHackathons, useBookmarks, useReviews, useDiscovery, useHomepageData, useRecommendations, useNotifications, etc.</td></tr>
+<tr><td>**API Routes**</td><td>`app/api/v1/`</td><td>16 API route groups — search, hackathons, bookmarks, reviews, profile, admin, analytics, auth, geocode, health, live, notifications, ready, stats, suggestions, tags</td></tr>
+<tr><td>**Domain Services**</td><td>`lib/services/`</td><td>13 services — hackathon-command, hackathon-query, bookmark, review, analytics, notification, geocode, deduplication, search, metadata, entity-cache, factories</td></tr>
+<tr><td>**Domain Layer**</td><td>`lib/domain/`</td><td>Entities (hackathon, review, bookmark, profile, organizer, notification), value objects (Slug, Url, Email, PrizePool, Location, DateRange, TeamSize, etc.), policies, specifications, mappers, factories, event bus</td></tr>
+<tr><td>**Repositories**</td><td>`lib/repositories/`</td><td>5 Supabase repository implementations — hackathon, bookmark, notification, profile, review</td></tr>
+<tr><td>**Discovery Engine**</td><td>`lib/discovery-engine.ts`</td><td>**Unified single search engine** — powers Spotlight search, homepage, map, categories. Uses intent-parser → repository → ranking pipeline</td></tr>
+<tr><td>**Infrastructure**</td><td>`lib/infrastructure/`</td><td>Search and storage infrastructure</td></tr>
+</tbody></table></div>
+<h3>4.3 Search Architecture (Critical System)</h3>
+<p>The search system is one of the most complex parts:</p>
+<pre><code class="language-">User Query → Intent Parser (NLP) → Search Filters → Repository (Supabase) → Ranking Engine → Results</code></pre>
+<p><strong>Components:</strong></p>
+<ul>
+<li><strong><code>lib/intent-parser.ts</code></strong> — Natural language parsing. Extracts:</li>
+<li>Technology tags via synonym expansion (AI, Web3, Cloud, Cybersecurity, etc.)</li>
+<li>Indian cities (Bangalore, Mumbai, Delhi, Pune, etc.)</li>
+<li>Online/offline mode</li>
+<li>Difficulty level (beginner, intermediate, advanced)</li>
+<li>Prize amount (regex extraction)</li>
+<li>Timeframe (this weekend, this month)</li>
+</ul>
+<ul>
+<li><strong><code>lib/search-ranking.ts</code></strong> — Pure deterministic ranking with score boosts for:</li>
+<li>Featured (+15) and Verified (+10) hackathons</li>
+<li>Registration deadline urgency (closing in 3 days: +12)</li>
+<li>User tag affinity (+8 per matching tag)</li>
+<li>Proximity boost (+15 for <25km, +10 for <50km, +5 for <100km)</li>
+</ul>
+<ul>
+<li><strong><code>lib/discovery-engine.ts</code></strong> — <code>StatelessDiscoveryEngine</code> class that orchestrates the pipeline. Singleton exported as <code>discoveryEngine</code>.</li>
+</ul>
+<ul>
+<li><strong><code>lib/search-suggestions.ts</code></strong> — Typeahead search suggestions.</li>
+<li><strong><code>lib/search-analytics.ts</code></strong> — Fire-and-forget analytics logging.</li>
+<li><strong><code>lib/recent-searches.ts</code></strong> — localStorage-based recent search history.</li>
+</ul>
+<h3>4.4 Authentication Architecture</h3>
+<ul>
+<li><strong>Provider</strong>: Supabase Auth with Google OAuth</li>
+<li><strong>Context</strong>: <code>lib/auth-context.tsx</code> — React context providing <code>user</code>, <code>session</code>, <code>profile</code>, <code>role</code></li>
+<li><strong>Auth Callback</strong>: <code>app/auth/callback/route.ts</code></li>
+<li><strong>Profile</strong>: Fetched from <code>profiles</code> table, falls back to Google metadata</li>
+<li><strong>Roles</strong>: <code>user</code>, <code>organizer</code>, <code>moderator</code>, <code>admin</code></li>
+<li><strong>Navbar Auth</strong>: Dynamically imported with <code>ssr: false</code> to prevent hydration mismatch</li>
+</ul>
+<h3>4.5 Database Schema</h3>
+<p><strong>Core Tables</strong> (20+ tables):</p>
+<div class="table-wrapper"><table>
+<thead><tr><th>Table</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>`hackathons`</td><td>Main hackathon data — 50+ columns including geo, scores, lifecycle</td></tr>
+<tr><td>`profiles`</td><td>User profiles with social links, role, XP</td></tr>
+<tr><td>`reviews`</td><td>Hackathon reviews with org quality, prize transparency, mentorship ratings</td></tr>
+<tr><td>`bookmarks`</td><td>User-hackathon bookmark relationships</td></tr>
+<tr><td>`notifications`</td><td>User notification messages</td></tr>
+<tr><td>`search_history`</td><td>Per-user search query persistence</td></tr>
+<tr><td>`search_events`</td><td>Search analytics (clicks, position, response time)</td></tr>
+<tr><td>`saved_collections`</td><td>Pinterest-style user collections</td></tr>
+<tr><td>`collection_items`</td><td>Collection-hackathon relationships</td></tr>
+<tr><td>`user_interests`</td><td>Personalization — tag weights per user</td></tr>
+<tr><td>`curated_collections`</td><td>Admin-curated filter-based collections</td></tr>
+<tr><td>`organizers`</td><td>Organizer profiles with stats and verification</td></tr>
+<tr><td>`universities`</td><td>University profiles with location and rankings</td></tr>
+<tr><td>`cities`</td><td>City entities with top tags and coordinates</td></tr>
+<tr><td>`technologies`</td><td>Technology taxonomy with aliases</td></tr>
+<tr><td>`hackathon_media`</td><td>Gallery images/videos per hackathon</td></tr>
+<tr><td>`hackathon_timeline`</td><td>Event milestones</td></tr>
+<tr><td>`hackathon_statistics`</td><td>View/save/click analytics per hackathon</td></tr>
+<tr><td>`hackathon_participants`</td><td>Registration tracking</td></tr>
+<tr><td>`hackathon_related`</td><td>Many-to-many similar hackathon relationships</td></tr>
+<tr><td>`verification_status`</td><td>Verification audit trail</td></tr>
+<tr><td>`organizer_followers`</td><td>User-organizer follow relationships</td></tr>
+<tr><td>`university_followers`</td><td>User-university follow relationships</td></tr>
+<tr><td>`saved_searches`</td><td>Saved search filters with notification opt-in</td></tr>
+</tbody></table></div>
+<p><strong>DB Extensions</strong>: PostGIS (geo queries), pg_trgm (trigram fuzzy search), unaccent</p>
+<p><strong>Key Indexes</strong>:</p>
+<ul>
+<li>GIN trigram indexes on <code>hackathons.title</code> and <code>hackathons.description</code></li>
+<li>GIN index on <code>hackathons.tags</code></li>
+<li>GIN index on <code>hackathons.search_vector</code> (full-text tsvector)</li>
+<li>GIST index on <code>hackathons.geo_point</code> (PostGIS geography)</li>
+</ul>
+<p><strong>DB Triggers</strong>:</p>
+<ul>
+<li><code>trg_hackathon_search_vector</code> — Auto-generates weighted tsvector (title=A, organizer=B, city=B, tags=C, description=D)</li>
+<li><code>trg_hackathon_geo_point</code> — Auto-generates PostGIS geography point from lat/lng</li>
+</ul>
+<p><strong>Row Level Security</strong>: Enabled on ALL tables with appropriate policies (own data for authenticated, public read for anon where applicable).</p>
+<p><strong>Migrations</strong> (5 files in <code>supabase/migrations/</code>):</p>
+<ul>
+<li><code>20260725_phase3_schema.sql</code></li>
+<li><code>20260803_add_map_coordinates.sql</code></li>
+<li><code>20260803_fix_handle_new_user_trigger.sql</code></li>
+<li><code>20260804_admin_allowlist_and_audit.sql</code></li>
+<li><code>20260804_fix_hackathons_submission_rls.sql</code></li>
+</ul>
+<hr>
+<h2>5. Complete File Structure</h2>
+<pre><code class="language-">Findathon/
+├── app/                              # Next.js App Router pages
+│   ├── layout.tsx                    # Root layout (Inter + JetBrains Mono fonts, AuthProvider, AuroraBackground)
+│   ├── page.tsx                      # Homepage — Hero, Stats, Featured Carousel, Trending Tags, Recommendations, Collections, How It Works, Hackathon Grid
+│   ├── globals.css                   # Design system — CSS variables, glassmorphism, aurora, animations
+│   ├── global-error.tsx              # Sentry-integrated global error boundary
+│   ├── robots.ts                     # SEO robots.txt config
+│   ├── sitemap.ts                    # Dynamic sitemap generator
+│   ├── favicon.ico
+│   ├── account/page.tsx              # Account settings (44KB — very large)
+│   ├── admin/                        # Admin panel
+│   │   ├── layout.tsx                # Admin layout with sidebar
+│   │   ├── page.tsx                  # Admin dashboard (38KB)
+│   │   ├── analytics/                # Admin analytics
+│   │   ├── quick-add/                # Quick hackathon add form
+│   │   ├── submissions/              # Submission management
+│   │   └── users/                    # User management
+│   ├── api/v1/                       # REST API routes
+│   │   ├── admin/                    # Admin API (analytics, stats)
+│   │   ├── analytics/                # Analytics events
+│   │   ├── auth/                     # Auth endpoints
+│   │   ├── bookmarks/                # Bookmark CRUD
+│   │   ├── geocode/                  # Geocoding service
+│   │   ├── hackathons/               # Hackathon CRUD
+│   │   ├── health/                   # Health check
+│   │   ├── live/                     # Live status
+│   │   ├── notifications/            # Notification endpoints
+│   │   ├── profile/                  # Profile CRUD + delete + export
+│   │   ├── ready/                    # Readiness probe
+│   │   ├── reviews/                  # Review CRUD
+│   │   ├── search/                   # Search endpoint
+│   │   ├── stats/                    # Public stats
+│   │   ├── suggestions/              # Search suggestions
+│   │   └── tags/                     # Tag taxonomy
+│   ├── auth/callback/                # OAuth callback handler
+│   ├── categories/                   # Category listing + detail ([id])
+│   ├── hackathons/[id]/              # Hackathon detail page (HackathonDetailClient.tsx)
+│   ├── map/page.tsx                  # Interactive Leaflet map (34KB)
+│   ├── onboarding/page.tsx           # New user onboarding flow
+│   ├── organizers/[slug]/            # Organizer profile pages
+│   ├── profile/[username]/           # Public profile pages
+│   ├── submit/page.tsx               # Hackathon submission form (24KB)
+│   └── universities/[slug]/          # University profile pages
+│
+├── components/                       # React UI components
+│   ├── AuroraBackground.tsx          # Animated gradient background
+│   ├── AuthModal.tsx                 # Authentication modal (AuthModalProvider context)
+│   ├── CompareDrawer.tsx             # Side-by-side hackathon comparison drawer
+│   ├── CountdownTimer.tsx            # Event countdown timer
+│   ├── Footer.tsx                    # Site footer
+│   ├── HackathonCard.tsx             # Main hackathon listing card
+│   ├── MapMarkerPreview.tsx          # Map marker popover
+│   ├── Navbar.tsx                    # Floating glassmorphism navbar
+│   ├── NavbarAuthSection.tsx         # Auth UI (dynamic import, ssr: false)
+│   ├── SpotlightSearch.tsx           # Cmd+K spotlight trigger
+│   ├── UniversalSearch.tsx           # Full spotlight search modal (13KB)
+│   ├── admin/                        # Admin components
+│   │   ├── RejectionModal.tsx
+│   │   └── StatusBadge.tsx
+│   ├── auth/                         # Auth components
+│   ├── hackathon-detail/             # 13 detail page sub-components
+│   │   ├── AboutSection.tsx
+│   │   ├── ContactCard.tsx
+│   │   ├── CountdownCard.tsx
+│   │   ├── FAQSection.tsx
+│   │   ├── GallerySection.tsx
+│   │   ├── HackathonHero.tsx
+│   │   ├── OrganizerCard.tsx
+│   │   ├── PrizeSection.tsx
+│   │   ├── QuickFacts.tsx
+│   │   ├── RelatedSection.tsx
+│   │   ├── RequirementsSection.tsx
+│   │   ├── ReviewSection.tsx
+│   │   └── TimelineSection.tsx
+│   └── search/                       # Search components
+│
+├── lib/                              # Core business logic
+│   ├── supabase.ts                   # Supabase browser client
+│   ├── supabase-server.ts            # Supabase server client
+│   ├── supabase-admin.ts             # Supabase admin (service role) client
+│   ├── auth-context.tsx              # AuthProvider + useAuth hook
+│   ├── discovery-engine.ts           # Unified search engine (StatelessDiscoveryEngine)
+│   ├── discovery-score.ts            # Discovery scoring algorithms
+│   ├── intent-parser.ts              # Natural language → search filters
+│   ├── search-ranking.ts             # Pure deterministic ranking
+│   ├── search-suggestions.ts         # Typeahead suggestions
+│   ├── search-analytics.ts           # Analytics logging
+│   ├── recent-searches.ts            # localStorage recent searches
+│   ├── collections.ts                # Curated collections config
+│   ├── repository.ts                 # Main hackathon repository (Supabase + Mock fallback)
+│   ├── dto.ts                        # HackathonDTO, toHackathonDTO mapper
+│   ├── map-utils.ts                  # Map helper utilities
+│   ├── spatial-service.ts            # Spatial query utilities
+│   ├── storage-service.ts            # File storage service
+│   ├── feature-flags.ts              # Feature flag config
+│   ├── observability.ts              # Observability utilities
+│   ├── api/                          # API client helpers
+│   ├── auth/auth.service.ts          # Auth service
+│   ├── cache/                        # Cache provider interface
+│   ├── common/                       # Shared utilities
+│   ├── composition/                  # Service composition
+│   ├── context/request-context.ts    # Request context (user, role, requestId, ip)
+│   ├── domain/                       # Domain-driven design layer
+│   │   ├── entities/                 # 6 entities (hackathon, review, bookmark, profile, organizer, notification)
+│   │   ├── events/                   # Event bus (INERT), event types, memory queue
+│   │   ├── factories/                # Entity factories
+│   │   ├── mappers/                  # DB↔Entity mappers
+│   │   ├── policies/                 # Business policies (HackathonPublicationPolicy)
+│   │   ├── repositories/             # Repository interfaces
+│   │   ├── specifications/           # Query specifications
+│   │   ├── unit-of-work/             # Unit of work pattern
+│   │   ├── value-objects/            # Value objects (Slug, Url, Email, PrizePool, Location, DateRange, TeamSize, HackathonStatusState)
+│   │   ├── hackathon.repository.ts
+│   │   ├── organizer.repository.ts
+│   │   ├── review.repository.ts
+│   │   └── university.repository.ts
+│   ├── errors/                       # Error classes (BaseError, AuthenticationError, PermissionError, NotFoundError) + Result type
+│   ├── events/                       # Application events
+│   ├── features/                     # Feature flag provider (INERT)
+│   ├── infrastructure/               # Search + storage infrastructure
+│   ├── middleware/                    # Logger, rate-limit, validate middleware
+│   ├── modules/                      # Module containers
+│   ├── monitoring/sentry.ts          # Sentry init
+│   ├── notifications/                # Notification dispatcher + templates (INERT)
+│   ├── observability/                # Observability layer
+│   ├── permissions/                  # Permission checks
+│   ├── realtime/                     # Realtime subscriptions
+│   ├── repositories/                 # 5 Supabase repository implementations
+│   ├── security/                     # CSRF, encryption, security headers
+│   ├── services/                     # 13 domain services
+│   ├── shared/                       # Shared utilities
+│   ├── storage/                      # Storage/image pipeline (INERT)
+│   ├── stores/compare-store.ts       # Zustand-like compare store
+│   ├── transport/                    # Transport layer
+│   ├── types/                        # Internal types (search, hackathon, analytics, collections)
+│   ├── validators/                   # 6 Zod validation schemas
+│   └── view-models/                  # View model transformations
+│
+├── hooks/                            # 16 React custom hooks
+│   ├── useAnalytics.ts
+│   ├── useBookmark.ts
+│   ├── useBookmarks.ts
+│   ├── useCreateReview.ts
+│   ├── useDeleteReview.ts
+│   ├── useDiscovery.ts
+│   ├── useHackathon.ts
+│   ├── useHackathonDetail.ts
+│   ├── useHackathons.ts
+│   ├── useHomepageData.ts
+│   ├── useNotifications.ts
+│   ├── useOrganizer.ts
+│   ├── useRecommendations.ts
+│   ├── useReviewList.ts
+│   ├── useReviews.ts
+│   └── useSearch.ts
+│
+├── config/                           # Configuration
+│   ├── app.ts                        # App config
+│   ├── cache-keys.ts                 # Cache key constants
+│   ├── cache.ts                      # Cache TTL config
+│   ├── env.ts                        # Zod-validated environment variables
+│   ├── rate-limits.ts                # Rate limit configuration
+│   └── security.ts                   # Security config
+│
+├── constants/                        # Application constants
+│   ├── error-codes.ts
+│   ├── limits.ts
+│   ├── permissions.ts
+│   ├── roles.ts                      # UserRole: user | organizer | moderator | admin
+│   ├── routes.ts
+│   └── status.ts                     # HackathonStatus: pending | approved | rejected | archived
+│
+├── types/index.ts                    # TypeScript type definitions (DTOs + DB rows)
+├── utils/                            # Utility functions
+│   ├── currency.ts
+│   ├── date.ts
+│   ├── pagination.ts
+│   ├── response.ts                   # API response helpers
+│   ├── result.ts                     # Result type
+│   ├── sanitize.ts                   # Input sanitization
+│   ├── seo.ts                        # SEO helpers
+│   └── slug.ts                       # Slug generation
+│
+├── cron/                             # Scheduled jobs
+│   ├── daily.ts                      # Daily cron tasks
+│   └── hourly.ts                     # Hourly cron tasks
+│
+├── jobs/                             # Background jobs
+│   ├── computeQuality.ts             # Quality score computation
+│   ├── computeTrending.ts            # Trending score computation
+│   ├── job.interface.ts              # Job interface
+│   └── refreshCache.ts              # Cache refresh
+│
+├── supabase/                         # Database
+│   ├── schema.sql                    # Full DB schema (423 lines)
+│   └── migrations/                   # 5 migration files
+│
+├── tests/architecture/               # Architecture tests
+├── docs/                             # Documentation
+│   ├── architecture.md
+│   └── decision-records/
+├── .github/workflows/                # CI/CD
+├── proxy.ts                          # Dev proxy
+├── instrumentation.ts                # Sentry instrumentation hook
+└── package.json</code></pre>
+<hr>
+<h2>6. Key Features (Implemented)</h2>
+<h3>6.1 Homepage (`app/page.tsx` — 541 lines)</h3>
+<ul>
+<li><strong>Hero Section</strong>: Animated gradient text, Cmd+K search trigger, category chips</li>
+<li><strong>Live Stats</strong>: Animated counters (2,450+ hackathons, 1.2M+ developers, $45M+ prizes, 150+ cities)</li>
+<li><strong>Featured Carousel</strong>: Horizontal scrollable carousel with skeleton loading</li>
+<li><strong>Trending Technologies</strong>: Tag cloud with counts</li>
+<li><strong>Personalized Recommendations</strong>: Auth-gated, based on user interests</li>
+<li><strong>Curated Collections</strong>: System-defined collection cards</li>
+<li><strong>How It Works</strong>: 4-step explainer</li>
+<li><strong>All Hackathons Grid</strong>: Filterable grid with tabs (All/Online/In-Person), view toggle (Grid/List), pagination</li>
+</ul>
+<h3>6.2 Spotlight Search (Cmd+K)</h3>
+<ul>
+<li><strong>UniversalSearch.tsx</strong> (303 lines, 13KB): Full modal with:</li>
+<li>Natural language query parsing</li>
+<li>Real-time typeahead suggestions</li>
+<li>Recent search history (localStorage)</li>
+<li>Quick filter pills (Online, AI, Web3, etc.)</li>
+<li>Keyboard navigation (↑/↓/Enter/Esc)</li>
+<li>Live results with debounced fetching</li>
+</ul>
+<h3>6.3 Interactive Map (`app/map/page.tsx` — 34KB)</h3>
+<ul>
+<li>Leaflet-based map with PostGIS geo queries</li>
+<li><code>findWithinRadius()</code> and <code>findInBounds()</code> RPC functions</li>
+<li>MapMarkerPreview popover component</li>
+<li>Coordinate-based clustering</li>
+</ul>
+<h3>6.4 Hackathon Detail Page</h3>
+<ul>
+<li>13 sub-components: Hero, About, QuickFacts, Countdown, Prize, Timeline, Requirements, Gallery, Contact, OrganizerCard, Review, Related, FAQ</li>
+<li>Review system with multi-dimensional ratings (organization quality, prize transparency, mentorship)</li>
+</ul>
+<h3>6.5 Compare Drawer</h3>
+<ul>
+<li>Side-by-side hackathon comparison</li>
+<li>Zustand-like store (<code>compare-store.ts</code>) for state</li>
+<li>Compare by prize, dates, location, tags</li>
+</ul>
+<h3>6.6 Admin Panel (`app/admin/` — 38KB main page)</h3>
+<ul>
+<li>Dashboard with stats</li>
+<li>Submission approval/rejection workflow (RejectionModal)</li>
+<li>User management</li>
+<li>Analytics dashboard</li>
+<li>Quick-add hackathon form</li>
+</ul>
+<h3>6.7 Submit Hackathon (`app/submit/page.tsx` — 24KB)</h3>
+<ul>
+<li>Multi-section form with validation</li>
+<li>Auth-gated (requires Google sign-in)</li>
+<li>Status tracking for submissions</li>
+</ul>
+<h3>6.8 User Features</h3>
+<ul>
+<li><strong>Bookmarks</strong>: Save/unsave hackathons with hooks</li>
+<li><strong>Reviews</strong>: Create/delete reviews with ratings</li>
+<li><strong>Profile</strong>: Public profile pages (<code>profile/[username]</code>)</li>
+<li><strong>Account Settings</strong>: Full settings page (44KB)</li>
+<li><strong>Onboarding</strong>: New user interest selection flow</li>
+<li><strong>Notifications</strong>: Bell icon with unread count</li>
+</ul>
+<h3>6.9 SEO</h3>
+<ul>
+<li>Dynamic sitemap generation</li>
+<li>robots.txt configuration</li>
+<li>Meta tags (title, description, keywords)</li>
+<li>Semantic HTML</li>
+</ul>
+<hr>
+<h2>7. Design System</h2>
+<h3>7.1 Color Palette</h3>
+<pre><code class="language-">--bg-primary: #060816       (Deep navy/black)
+--bg-secondary: #0D1224     (Dark navy)
+--bg-card: rgba(13,18,36,0.6)
+--accent-violet: #8B5CF6    (Primary purple)
+--accent-blue: #4CC9F0      (Cyan blue)
+--accent-cyan: #00E5FF      (Bright cyan)
+--accent-emerald: #00FFA3   (Neon green)
+--text-primary: #F6F8FC     (Off-white)
+--text-secondary: #94A3B8   (Muted blue-gray)</code></pre>
+<h3>7.2 CSS Utility Classes</h3>
+<ul>
+<li><code>.glass-card</code> — Glassmorphism with blur(20px) and inner highlight</li>
+<li><code>.glass-card-hover</code> — Hover lift with glow border</li>
+<li><code>.glow-text</code> — Purple-to-cyan gradient text</li>
+<li><code>.aurora-border</code> — Animated gradient border</li>
+<li><code>.text-gradient</code> — Full rainbow gradient text</li>
+<li><code>.shimmer</code> — Loading skeleton animation</li>
+</ul>
+<h3>7.3 Animations (8 keyframes)</h3>
+<p><code>shimmer</code>, <code>float</code>, <code>aurora-move</code>, <code>fade-in-up</code>, <code>cascade</code>, <code>twinkle</code>, <code>ring-pulse</code>, <code>rotate-slow</code></p>
+<h3>7.4 Accessibility</h3>
+<ul>
+<li><code>prefers-reduced-motion</code> media query support</li>
+<li>Semantic HTML structure</li>
+<li><code>aria</code> attributes on interactive elements</li>
+</ul>
+<hr>
+<h2>8. Security Measures</h2>
+<h3>8.1 Implemented</h3>
+<ul>
+<li><strong>Next.js Security Headers</strong>: X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, Permissions-Policy, X-DNS-Prefetch-Control</li>
+<li><strong>Row Level Security</strong>: Enabled on ALL Supabase tables</li>
+<li><strong>CSRF protection</strong>: <code>lib/security/csrf.ts</code></li>
+<li><strong>Encryption utilities</strong>: <code>lib/security/encryption.ts</code></li>
+<li><strong>Security headers module</strong>: <code>lib/security/headers.ts</code></li>
+<li><strong>Rate limiting config</strong>: <code>config/rate-limits.ts</code></li>
+<li><strong>Input sanitization</strong>: <code>utils/sanitize.ts</code></li>
+<li><strong>Zod validation schemas</strong>: 6 schemas for hackathon, review, profile, search, bookmark, notification</li>
+<li><strong>Environment validation</strong>: Zod schema for env vars</li>
+</ul>
+<h3>8.2 Next.js Config Security</h3>
+<pre><code class="language-typescript">headers: [
+  { key: &#x27;X-Frame-Options&#x27;, value: &#x27;DENY&#x27; },
+  { key: &#x27;X-Content-Type-Options&#x27;, value: &#x27;nosniff&#x27; },
+  { key: &#x27;Referrer-Policy&#x27;, value: &#x27;strict-origin-when-cross-origin&#x27; },
+  { key: &#x27;Permissions-Policy&#x27;, value: &#x27;camera=(), microphone=(), geolocation=()&#x27; },
+]</code></pre>
+<hr>
+<h2>9. Known Bugs & Issues</h2>
+<h3>9.1 Lint Errors (from lint_output.txt)</h3>
+<h4>Critical — Unescaped Entities (React render errors):</h4>
+<ul>
+<li><code>app/admin/page.tsx</code>: Lines 391, 642, 733 — Unescaped <code>'</code> and <code>"</code> characters in JSX</li>
+<li><code>app/admin/quick-add/page.tsx</code>: Unescaped entities</li>
+</ul>
+<h4>Unused Imports/Variables (35+ warnings):</h4>
+<ul>
+<li><code>app/page.tsx</code>: Unused imports — <code>useRouter</code>, <code>Filter</code>, <code>Layers</code>, <code>Cpu</code>, <code>Shield</code>, <code>Cloud</code>, <code>Smartphone</code>, <code>Palette</code></li>
+<li><code>app/hackathons/[id]/HackathonDetailClient.tsx</code>: 12 unused imports — <code>HackathonCard</code>, <code>Globe</code>, <code>Check</code>, <code>ChevronDown</code>, <code>Building</code>, <code>Mail</code>, <code>MessageCircle</code>, <code>Flag</code>, <code>Award</code>, <code>Briefcase</code>, unused <code>user</code>, <code>activeFaq</code>, <code>setActiveFaq</code></li>
+<li><code>app/admin/quick-add/page.tsx</code>: Unused <code>KeyboardEvent</code>, <code>Link</code>, <code>router</code></li>
+<li><code>app/api/v1/admin/analytics/route.ts</code>: Unused <code>req</code></li>
+<li><code>app/api/v1/admin/stats/route.ts</code>: Unused <code>req</code></li>
+<li><code>app/api/v1/profile/delete/route.ts</code>: Unused <code>req</code></li>
+<li><code>app/api/v1/profile/export/route.ts</code>: Unused <code>BaseError</code></li>
+<li><code>app/api/v1/profile/route.ts</code>: Unused <code>NextResponse</code></li>
+<li><code>app/auth/callback/route.ts</code>: Unused <code>next</code></li>
+</ul>
+<h3>9.2 Architectural Issues</h3>
+<ul>
+<li><strong>Mock Data Fallback Everywhere</strong>: The <code>SupabaseHackathonRepository</code> silently falls back to <code>MockHackathonRepository</code> on ANY error, empty results, or missing env vars. This masks database connection issues in production.</li>
+</ul>
+<ul>
+<li><strong>Empty MOCK_HACKATHONS Array</strong>: <code>lib/supabase.ts</code> exports <code>MOCK_HACKATHONS: Hackathon[] = []</code> — the mock fallback returns empty data, making it useless as a fallback.</li>
+</ul>
+<ul>
+<li><strong><code>getByIds</code> Performance</strong>: <code>StatelessDiscoveryEngine.getByIds()</code> fetches ALL hackathons via <code>discover()</code> then filters by ID in-memory. This is O(N) instead of a targeted query.</li>
+</ul>
+<ul>
+<li><strong>Browser Client in Server Context</strong>: <code>lib/supabase.ts</code> uses <code>createBrowserClient()</code> which may be imported in server-side API routes. Server routes should exclusively use <code>supabase-server.ts</code>.</li>
+</ul>
+<ul>
+<li><strong>Duplicate Type Systems</strong>: <code>types/index.ts</code> defines DTOs using camelCase (<code>HackathonDTO.startDate</code>), while <code>lib/dto.ts</code> defines DTOs using snake_case (<code>HackathonDTO.start_date</code>). This creates confusion about which DTO is canonical.</li>
+</ul>
+<ul>
+<li><strong><code>config/env.ts</code> imports <code>z</code> from 'zod'</strong>: But <code>zod</code> is NOT listed in <code>package.json</code> dependencies. This file would crash at runtime if actually imported.</li>
+</ul>
+<ul>
+<li><strong>Sitemap uses browser client</strong>: <code>app/sitemap.ts</code> imports from <code>@/lib/supabase</code> (browser client) but runs during build time on the server.</li>
+</ul>
+<h3>9.3 Potential Runtime Bugs</h3>
+<ul>
+<li><strong>Hydration Mismatch Risk</strong>: The homepage (<code>app/page.tsx</code>) is <code>'use client'</code> and uses <code>useRouter</code> but the page uses SSR-unfriendly patterns (e.g., <code>Date</code> objects in renders).</li>
+</ul>
+<ul>
+<li><strong><code>mapDtoToHackathon</code> unsafe casting</strong>: Homepage function casts unknown DTO shapes to <code>Hackathon</code> type with <code>as unknown as Hackathon</code>, bypassing type safety.</li>
+</ul>
+<ul>
+<li><strong>Missing Error Boundaries</strong>: Individual page sections don't have error boundaries — a single failing section (e.g., recommendations API) could crash the entire homepage.</li>
+</ul>
+<ul>
+<li><strong>Compare Store Memory</strong>: The compare store keeps IDs in memory but doesn't persist across page refreshes or validate that IDs still exist.</li>
+</ul>
+<ul>
+<li><strong>Race Conditions in Search</strong>: The debounced search in <code>UniversalSearch.tsx</code> doesn't cancel previous in-flight requests when a new query is typed.</li>
+</ul>
+<hr>
+<h2>10. INERT (Placeholder) Infrastructure</h2>
+<p>These modules exist as typed contracts but have NO active implementation:</p>
+<div class="table-wrapper"><table>
+<thead><tr><th>Module</th><th>File</th><th>Future Purpose</th></tr></thead>
+<tbody>
+<tr><td>**Event Bus**</td><td>`lib/domain/events/event-bus.ts`</td><td>Domain event pub/sub (review created, bookmark toggled)</td></tr>
+<tr><td>**Memory Queue**</td><td>`lib/domain/events/memory-queue.provider.ts`</td><td>In-memory event queue</td></tr>
+<tr><td>**Notification Dispatcher**</td><td>`lib/notifications/notification-dispatcher.ts`</td><td>Push notifications on events</td></tr>
+<tr><td>**Notification Templates**</td><td>`lib/notifications/notification-template.ts`</td><td>Template rendering</td></tr>
+<tr><td>**Image Pipeline**</td><td>`lib/storage/`</td><td>Image optimization, WebP CDN variants</td></tr>
+<tr><td>**Feature Flags**</td><td>`lib/features/`</td><td>Dynamic feature toggle evaluation</td></tr>
+<tr><td>**Realtime**</td><td>`lib/realtime/`</td><td>Supabase realtime subscriptions</td></tr>
+</tbody></table></div>
+<hr>
+<h2>11. Environment Variables</h2>
+<pre><code class="language-env">NEXT_PUBLIC_SUPABASE_URL=       # Supabase project URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=  # Supabase anon/public key
+SUPABASE_SERVICE_ROLE_KEY=      # Supabase service role (admin) key
+NEXT_PUBLIC_SITE_URL=           # Public site URL (default: https://findathon.vercel.app)
+NEXT_PUBLIC_APP_URL=            # App URL (default: http://localhost:3000)
+SENTRY_DSN=                     # Sentry error tracking DSN
+NODE_ENV=                       # development | production | test</code></pre>
+<hr>
+<h2>12. Key Design Patterns Used</h2>
+<div class="table-wrapper"><table>
+<thead><tr><th>Pattern</th><th>Where</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>**Repository Pattern**</td><td>`lib/repository.ts`, `lib/repositories/`, `lib/domain/`</td><td>Abstracted data access with interfaces</td></tr>
+<tr><td>**CQRS**</td><td>`hackathon-command.service.ts` + `hackathon-query.service.ts`</td><td>Separated read/write operations</td></tr>
+<tr><td>**Domain Entities**</td><td>`lib/domain/entities/`</td><td>Rich domain models with state transitions (approve, reject, archive)</td></tr>
+<tr><td>**Value Objects**</td><td>`lib/domain/value-objects/`</td><td>Immutable typed wrappers (Slug, Url, Email, PrizePool, etc.)</td></tr>
+<tr><td>**Factory Pattern**</td><td>`lib/services/factories.ts`, `lib/domain/factories/`</td><td>Entity creation with defaults</td></tr>
+<tr><td>**Result Type**</td><td>`lib/errors/result.ts`</td><td>`Result<T, E>` for explicit error handling</td></tr>
+<tr><td>**Specification Pattern**</td><td>`lib/domain/specifications/`</td><td>Composable query specifications</td></tr>
+<tr><td>**Strategy Pattern**</td><td>Discovery engine with swappable repository</td><td>Pluggable data sources</td></tr>
+<tr><td>**Observer (INERT)**</td><td>`lib/domain/events/event-bus.ts`</td><td>Domain event pub/sub</td></tr>
+<tr><td>**Context Pattern**</td><td>`AuthContext`, `AuthModalProvider`, `SpotlightProvider`</td><td>React state sharing</td></tr>
+<tr><td>**Provider Pattern**</td><td>`lib/auth-context.tsx`</td><td>Dependency injection via React context</td></tr>
+</tbody></table></div>
+<hr>
+<h2>13. Cron Jobs & Background Jobs</h2>
+<h3>Cron Schedules:</h3>
+<ul>
+<li><strong>Hourly</strong> (<code>cron/hourly.ts</code>): Trending score computation, cache refresh</li>
+<li><strong>Daily</strong> (<code>cron/daily.ts</code>): Quality score computation</li>
+</ul>
+<h3>Job Implementations:</h3>
+<ul>
+<li><code>jobs/computeQuality.ts</code> — Calculates quality scores based on description length, verification, prizes</li>
+<li><code>jobs/computeTrending.ts</code> — Calculates trending scores</li>
+<li><code>jobs/refreshCache.ts</code> — Refreshes cached data</li>
+</ul>
+<hr>
+<h2>14. Third-Party Service Integration</h2>
+<div class="table-wrapper"><table>
+<thead><tr><th>Service</th><th>Purpose</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>**Supabase**</td><td>Database, Auth, Storage, Realtime</td><td>✅ Active</td></tr>
+<tr><td>**Google OAuth**</td><td>User authentication</td><td>✅ Active</td></tr>
+<tr><td>**Leaflet/OpenStreetMap**</td><td>Interactive maps</td><td>✅ Active</td></tr>
+<tr><td>**Sentry**</td><td>Error monitoring & crash reporting</td><td>✅ Active (conditional on SENTRY_DSN)</td></tr>
+<tr><td>**Vercel**</td><td>Deployment & hosting</td><td>✅ Active</td></tr>
+<tr><td>**Unsplash**</td><td>Fallback cover images</td><td>✅ Active</td></tr>
+<tr><td>**Google Fonts**</td><td>Inter + JetBrains Mono</td><td>✅ Active</td></tr>
+</tbody></table></div>
+<hr>
+<h2>15. What's NOT Done / Roadmap</h2>
+<ul>
+<li><strong>No Test Coverage</strong>: <code>tests/architecture/</code> exists but no test files found</li>
+<li><strong>No CI/CD Pipeline Content</strong>: <code>.github/workflows/</code> exists but workflows not verified</li>
+<li><strong>No Caching Layer</strong>: Cache interfaces exist but no Redis/in-memory cache implementation</li>
+<li><strong>No Email Notifications</strong>: Notification system is INERT</li>
+<li><strong>No Image Optimization Pipeline</strong>: Storage service exists but no CDN/WebP processing</li>
+<li><strong>No Payment Integration</strong>: No Stripe/payment for premium organizer features</li>
+<li><strong>No API Rate Limiting Enforcement</strong>: Config exists but no middleware enforcement verified</li>
+<li><strong>No WebSocket/Realtime</strong>: Realtime module exists but unused</li>
+<li><strong>No i18n/Localization</strong>: Only English supported</li>
+<li><strong>No PWA Support</strong>: No service worker or manifest</li>
+<li><strong>No Dark/Light Mode Toggle</strong>: Fixed dark mode only</li>
+</ul>
+<hr>
+<h2>16. Important Notes for AI Agents</h2>
+<div class="alert alert-caution"><strong>🔴 CAUTION</strong><br>**Critical Quirks to Know:**</div>
+<ul>
+<li><strong>Next.js 16</strong>: This project uses Next.js <strong>16.2.12</strong> with React 19. API behaviors may differ from Next.js 14/15 training data. Always check <code>node_modules/next/dist/docs/</code> for current API docs.</li>
+</ul>
+<ul>
+<li><strong>Dual DTO Systems</strong>: There are TWO separate DTO type definitions:</li>
+<li><code>types/index.ts</code> → camelCase (<code>startDate</code>, <code>endDate</code>, <code>isOnline</code>)</li>
+<li><code>lib/dto.ts</code> → snake_case (<code>start_date</code>, <code>end_date</code>, <code>is_online</code>)</li>
+</ul>
+<p>   The <code>lib/dto.ts</code> version is the <strong>canonical</strong> one used by the discovery engine and repositories.</p>
+<ul>
+<li><strong>Supabase Client Split</strong>: Three separate clients:</li>
+<li><code>lib/supabase.ts</code> → Browser client (for client components)</li>
+<li><code>lib/supabase-server.ts</code> → Server client (for API routes, server components)</li>
+<li><code>lib/supabase-admin.ts</code> → Admin/service role client (for privileged operations)</li>
+</ul>
+<ul>
+<li><strong>Mock Fallback Pattern</strong>: The repository silently falls back to mock data on any error. If you see empty results, the DB connection might be broken.</li>
+</ul>
+<ul>
+<li><strong>INERT Modules</strong>: Several modules (<code>event-bus</code>, <code>notification-dispatcher</code>, <code>image-pipeline</code>, <code>feature-flags</code>) exist as typed contracts only. They compile but do nothing at runtime.</li>
+</ul>
+<ul>
+<li><strong>Zod Dependency Missing</strong>: <code>config/env.ts</code> imports <code>zod</code> but it's not in <code>package.json</code>. This file likely crashes at runtime or is never actually imported in the hot path.</li>
+</ul>
+<hr>
+<h2>17. Summary Statistics</h2>
+<div class="table-wrapper"><table>
+<thead><tr><th>Metric</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>**Total Pages**</td><td>12+ routes</td></tr>
+<tr><td>**API Endpoints**</td><td>16 route groups</td></tr>
+<tr><td>**React Components**</td><td>25+</td></tr>
+<tr><td>**Custom Hooks**</td><td>16</td></tr>
+<tr><td>**Domain Services**</td><td>13</td></tr>
+<tr><td>**Domain Entities**</td><td>6</td></tr>
+<tr><td>**Repository Implementations**</td><td>5</td></tr>
+<tr><td>**Database Tables**</td><td>20+</td></tr>
+<tr><td>**DB Migrations**</td><td>5</td></tr>
+<tr><td>**Validation Schemas**</td><td>6</td></tr>
+<tr><td>**CSS Animations**</td><td>8 keyframes</td></tr>
+<tr><td>**Lint Warnings**</td><td>35+</td></tr>
+<tr><td>**Lint Errors**</td><td>4 (unescaped entities)</td></tr>
+<tr><td>**INERT Modules**</td><td>7</td></tr>
+<tr><td>**Total Source Files**</td><td>~120+</td></tr>
+</tbody></table></div>
+
+
+</div>
+</body>
+</html>

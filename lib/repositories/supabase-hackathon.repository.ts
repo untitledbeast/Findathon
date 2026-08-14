@@ -85,7 +85,6 @@ export class SupabaseHackathonRepository implements IHackathonRepository {
     try {
       const rowPayload = HackathonMapper.dtoToRow(data as Partial<HackathonDTO>);
       rowPayload.created_at = new Date().toISOString();
-      rowPayload.updated_at = new Date().toISOString();
 
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
         const mockRow = { ...rowPayload, id: `hack_${Date.now()}` } as unknown as HackathonDatabaseRow;
@@ -105,7 +104,6 @@ export class SupabaseHackathonRepository implements IHackathonRepository {
   public async update(id: string, data: Partial<HackathonDTO>): Promise<HackathonDTO> {
     try {
       const rowPayload = HackathonMapper.dtoToRow(data);
-      rowPayload.updated_at = new Date().toISOString();
 
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
         const existing = await this.findById(id);

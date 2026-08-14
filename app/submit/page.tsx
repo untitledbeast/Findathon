@@ -35,6 +35,7 @@ export default function SubmissionWizardPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   // Form Fields
@@ -113,6 +114,7 @@ export default function SubmissionWizardPage() {
     if (!agree1 || !agree2) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await transportClient('/api/v1/hackathons', {
         method: 'POST',
@@ -120,26 +122,29 @@ export default function SubmissionWizardPage() {
           title,
           tagline,
           description,
-          coverImage: coverUrl,
+          coverImageUrl: coverUrl,
           tags: selectedTags,
           registrationDeadline: regDeadline,
           startDate,
           endDate,
           isOnline: mode === 'online',
+          mode,
           locationCity: city,
           locationCollege: venue,
           prizePool,
           minTeamSize: minTeam,
           maxTeamSize: maxTeam,
-          registrationUrl: regLink,
+          registerUrl: regLink,
+          organizer: contactName || user?.user_metadata?.full_name || 'Community Organizer',
           contactName,
           contactEmail
         })
-      }).catch(() => {});
+      });
 
       setIsSubmitted(true);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Hackathon submission error:', err);
+      setSubmitError(err?.message || 'Failed to submit hackathon. Please check all fields and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -499,6 +504,13 @@ export default function SubmissionWizardPage() {
               <h2 className="text-2xl font-black text-white">Contact & Agreement</h2>
               <p className="text-xs text-slate-400 mt-1">Final step before submission for review.</p>
             </div>
+
+            {submitError && (
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                {submitError}
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>
