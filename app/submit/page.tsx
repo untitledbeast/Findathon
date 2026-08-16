@@ -31,6 +31,8 @@ const CATEGORIES = ['AI/ML', 'Web3', 'Cloud', 'Cybersecurity', 'Mobile', 'Data S
 export default function SubmissionWizardPage() {
   const router = useRouter();
   const { user } = useAuth();
+  
+  const isSubmittingRef = React.useRef(false);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -112,6 +114,8 @@ export default function SubmissionWizardPage() {
   const handleFinishSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agree1 || !agree2) return;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -147,6 +151,7 @@ export default function SubmissionWizardPage() {
       setSubmitError(err?.message || 'Failed to submit hackathon. Please check all fields and try again.');
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 

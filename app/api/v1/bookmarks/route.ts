@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const user = await AuthService.getUser();
     if (!user) {
       const err = formatError({ message: 'Authentication required', statusCode: 401 });
-      return NextResponse.json(err, { status: 401 });
+      return NextResponse.json({ success: false, error: err }, { status: 401 });
     }
 
     const headers: Record<string, string | undefined> = {};
@@ -24,13 +24,13 @@ export async function GET(req: NextRequest) {
 
     if (!result.ok) {
       const err = formatError(result.error);
-      return NextResponse.json(err, { status: result.error.statusCode });
+      return NextResponse.json({ success: false, error: err }, { status: result.error.statusCode });
     }
 
-    return NextResponse.json({ data: result.value });
+    return NextResponse.json({ success: true, data: result.value }, { status: 200 });
   } catch (err) {
     const formatted = formatError(err);
-    return NextResponse.json(formatted, { status: formatted.statusCode });
+    return NextResponse.json({ success: false, error: formatted }, { status: formatted.statusCode });
   }
 }
 
@@ -56,12 +56,12 @@ export async function POST(req: NextRequest) {
 
     if (!result.ok) {
       const err = formatError(result.error);
-      return NextResponse.json(err, { status: result.error.statusCode });
+      return NextResponse.json({ success: false, error: err }, { status: result.error.statusCode });
     }
 
-    return NextResponse.json({ data: result.value });
+    return NextResponse.json({ success: true, data: result.value }, { status: 200 });
   } catch (err) {
     const formatted = formatError(err);
-    return NextResponse.json(formatted, { status: formatted.statusCode });
+    return NextResponse.json({ success: false, error: formatted }, { status: formatted.statusCode });
   }
 }
