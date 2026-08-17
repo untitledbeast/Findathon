@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch submissions — catch missing column error gracefully
-    let data: any[] = [];
+    let data: Record<string, unknown>[] = [];
     try {
       const { data: resData, error } = await supabase
         .from('hackathons')
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       meta: { total: (data || []).length }
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[submissions route] Unexpected error:', err);
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch submissions' } },

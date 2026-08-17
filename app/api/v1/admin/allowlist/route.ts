@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         auditLogs: auditLogs || []
       }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Admin Allowlist GET] error:', err);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       success: true,
       message: `Successfully added ${email} to admin allowlist`
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Admin Allowlist POST] exception:', err);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
@@ -150,7 +150,7 @@ export async function DELETE(req: NextRequest) {
       success: true,
       message: `Successfully removed ${email} from allowlist`
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Admin Allowlist DELETE] exception:', err);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }

@@ -120,35 +120,49 @@ export default function SubmissionWizardPage() {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
+      const finalStartDate = startDate.trim();
+      const finalEndDate = endDate.trim() || finalStartDate;
+      const finalRegDeadline = regDeadline.trim()
+        ? (new Date(regDeadline) <= new Date(finalStartDate) ? regDeadline.trim() : finalStartDate)
+        : finalStartDate;
+
+      let normalizedUrl = regLink.trim();
+      if (normalizedUrl && !/^https?:\/\//i.test(normalizedUrl)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+
+      const finalTags = selectedTags.length > 0 ? selectedTags : ['AI/ML'];
+
       await transportClient('/api/v1/hackathons', {
         method: 'POST',
         body: JSON.stringify({
-          title,
-          tagline,
-          description,
-          coverImageUrl: coverUrl,
-          tags: selectedTags,
-          registrationDeadline: regDeadline,
-          startDate,
-          endDate,
+          title: title.trim(),
+          tagline: tagline.trim() || undefined,
+          description: description.trim(),
+          coverImageUrl: coverUrl.trim() || undefined,
+          tags: finalTags,
+          registrationDeadline: finalRegDeadline,
+          startDate: finalStartDate,
+          endDate: finalEndDate,
           isOnline: mode === 'online',
           mode,
-          locationCity: city,
-          locationCollege: venue,
-          prizePool,
+          locationCity: mode === 'online' ? undefined : (city.trim() || undefined),
+          locationCollege: mode === 'online' ? undefined : (venue.trim() || undefined),
+          prizePool: prizePool.trim() || undefined,
           minTeamSize: minTeam,
           maxTeamSize: maxTeam,
-          registerUrl: regLink,
-          organizer: contactName || user?.user_metadata?.full_name || 'Community Organizer',
-          contactName,
-          contactEmail
+          registerUrl: normalizedUrl,
+          organizer: contactName.trim() || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Community Organizer',
+          contactName: contactName.trim() || undefined,
+          contactEmail: contactEmail.trim() || undefined
         })
       });
 
       setIsSubmitted(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Hackathon submission error:', err);
-      setSubmitError(err?.message || 'Failed to submit hackathon. Please check all fields and try again.');
+      const message = err instanceof Error ? err.message : 'Failed to submit hackathon. Please check all fields and try again.';
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
       isSubmittingRef.current = false;
@@ -297,7 +311,7 @@ export default function SubmissionWizardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">Categories (Up to 5)</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Categories (Select at least 1) *</label>
                 <div className="flex flex-wrap gap-2">
                   {CATEGORIES.map(cat => {
                     const isSel = selectedTags.includes(cat);
@@ -319,7 +333,7 @@ export default function SubmissionWizardPage() {
             </div>
 
             <button
-              disabled={!title || !description}
+              disabled={!title.trim() || !description.trim() || selectedTags.length === 0}
               onClick={() => setStep(2)}
               className="w-full py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >
@@ -337,22 +351,36 @@ export default function SubmissionWizardPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Registration Deadline *</label>
-                  <input
-                    type="date"
-                    value={regDeadline}
-                    onChange={(e) => setRegDeadline(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm focus:outline-none focus:border-purple-500"
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1.5">Start Date *</label>
                   <input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      if (!endDate || endDate < e.target.value) setEndDate(e.target.value);
+                    }}
+                    className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">End Date *</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                    className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">Registration Deadline</label>
+                  <input
+                    type="date"
+                    value={regDeadline}
+                    onChange={(e) => setRegDeadline(e.target.value)}
+                    max={startDate || undefined}
                     className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm focus:outline-none focus:border-purple-500"
                   />
                 </div>
@@ -427,8 +455,9 @@ export default function SubmissionWizardPage() {
               </button>
               <button
                 type="button"
+                disabled={!startDate || !endDate}
                 onClick={() => setStep(3)}
-                className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2"
+                className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 Next: Requirements <ArrowRight className="w-4 h-4" />
               </button>
@@ -492,7 +521,7 @@ export default function SubmissionWizardPage() {
               </button>
               <button
                 type="button"
-                disabled={!regLink}
+                disabled={!regLink.trim()}
                 onClick={() => setStep(4)}
                 className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 disabled:opacity-50"
               >

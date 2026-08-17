@@ -57,6 +57,12 @@ export class HackathonCommandService {
         submittedBy: context.user.id
       });
 
+      console.log('[HACKATHON CREATE DEBUG]', {
+         authenticatedUserId: context.user.id,
+        inputSubmittedBy: input.submittedBy,
+        entitySubmittedBy: entity.submittedBy,
+      });
+
       const dto = await this.hackathonRepo.create({
         title: entity.title,
         description: entity.description,

@@ -79,7 +79,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       success: true,
       message: `User role updated to '${role}' successfully`
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[Admin Role PATCH] exception:', err);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }

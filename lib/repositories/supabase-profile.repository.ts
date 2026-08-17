@@ -1,10 +1,22 @@
 import { IProfileRepository } from '../domain/repositories/profile.repository.interface';
 import { ProfileDTO, ProfileDatabaseRow } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { ProfileMapper } from '../domain/mappers/profile.mapper';
 import { DatabaseError } from '../errors';
 
 export class SupabaseProfileRepository implements IProfileRepository {
+  private async getClient() {
+    if (typeof window === 'undefined') {
+      try {
+        return await createSupabaseServerClient();
+      } catch {
+        return supabase;
+      }
+    }
+    return supabase;
+  }
+
   public async findById(userId: string): Promise<ProfileDTO | null> {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
@@ -26,7 +38,8 @@ export class SupabaseProfileRepository implements IProfileRepository {
         };
       }
 
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      const client = await this.getClient();
+      const { data, error } = await client.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (error || !data) return null;
 
       return ProfileMapper.rowToDTO(data as unknown as ProfileDatabaseRow);
@@ -46,7 +59,8 @@ export class SupabaseProfileRepository implements IProfileRepository {
         return { ...(existing || {}), ...data, id: userId } as ProfileDTO;
       }
 
-      const { data: updated, error } = await supabase.from('profiles').upsert([payload]).select().single();
+      const client = await this.getClient();
+      const { data: updated, error } = await client.from('profiles').upsert([payload]).select().single();
       if (error || !updated) throw new DatabaseError(error?.message || 'Failed to upsert profile');
 
       return ProfileMapper.rowToDTO(updated as unknown as ProfileDatabaseRow);
@@ -58,7 +72,8 @@ export class SupabaseProfileRepository implements IProfileRepository {
 
   public async findByOrganization(org: string): Promise<ProfileDTO[]> {
     try {
-      const { data, error } = await supabase.from('profiles').select('*').ilike('organization', `%${org}%`);
+      const client = await this.getClient();
+      const { data, error } = await client.from('profiles').select('*').ilike('organization', `%${org}%`);
       if (error || !data) return [];
       return data.map(row => ProfileMapper.rowToDTO(row as unknown as ProfileDatabaseRow));
     } catch {

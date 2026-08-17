@@ -99,28 +99,35 @@ function DiscoveryPlatformContent() {
   }, []);
 
   // Fetch hackathons from GET /api/v1/hackathons/map
-  const fetchMapHackathons = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/v1/hackathons/map');
-      if (!res.ok) throw new Error('Failed to load map data');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setHackathons(json.data);
-      } else {
-        throw new Error(json.error || 'Invalid API response format');
-      }
-    } catch (err: any) {
-      console.error('[Map Engine] fetch error:', err);
-      setError(err.message || 'Unable to load hackathon coordinates.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let active = true;
+    async function fetchMapHackathons() {
+      try {
+        const res = await fetch('/api/v1/hackathons/map');
+        if (!res.ok) throw new Error('Failed to load map data');
+        const json = await res.json();
+        if (!active) return;
+        if (json.success && Array.isArray(json.data)) {
+          setHackathons(json.data);
+        } else {
+          throw new Error(json.error || 'Invalid API response format');
+        }
+      } catch (err: unknown) {
+        if (!active) return;
+        console.error('[Map Engine] fetch error:', err);
+        const message = err instanceof Error ? err.message : 'Unable to load hackathon coordinates.';
+        setError(message);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
     fetchMapHackathons();
+    return () => {
+      active = false;
+    };
   }, []);
 
   // URL Param Sync

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { HackathonDatabaseRow } from '@/types';
 
 // Default city coordinates fallback map
 const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    const items = (hackathons || []).map((h: any) => {
+    const items = (hackathons || []).map((h: HackathonDatabaseRow) => {
       let lat: number | null = h.latitude ? Number(h.latitude) : null;
       let lng: number | null = h.longitude ? Number(h.longitude) : null;
 
@@ -95,7 +96,7 @@ export async function GET(req: NextRequest) {
       data: items,
       meta: { total: items.length }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[map API] Unexpected error:', err);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch map hackathons' },

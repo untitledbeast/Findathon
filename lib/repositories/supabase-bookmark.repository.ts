@@ -1,10 +1,22 @@
 import { IBookmarkRepository } from '../domain/repositories/bookmark.repository.interface';
 import { BookmarkDTO, HackathonDatabaseRow } from '@/types';
 import { supabase, MOCK_HACKATHONS } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { HackathonMapper } from '../domain/mappers/hackathon.mapper';
 import { DatabaseError } from '../errors';
 
 export class SupabaseBookmarkRepository implements IBookmarkRepository {
+  private async getClient() {
+    if (typeof window === 'undefined') {
+      try {
+        return await createSupabaseServerClient();
+      } catch {
+        return supabase;
+      }
+    }
+    return supabase;
+  }
+
   public async findByUser(userId: string): Promise<BookmarkDTO[]> {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) {
@@ -17,7 +29,8 @@ export class SupabaseBookmarkRepository implements IBookmarkRepository {
         }));
       }
 
-      const { data, error } = await supabase.from('saved_hackathons').select('*, hackathons(*)').eq('user_id', userId);
+      const client = await this.getClient();
+      const { data, error } = await client.from('saved_hackathons').select('*, hackathons(*)').eq('user_id', userId);
       if (error || !data) return [];
 
       return data.map(row => ({
@@ -38,7 +51,8 @@ export class SupabaseBookmarkRepository implements IBookmarkRepository {
         return null;
       }
 
-      const { data, error } = await supabase
+      const client = await this.getClient();
+      const { data, error } = await client
         .from('saved_hackathons')
         .select('*')
         .eq('user_id', userId)
@@ -65,7 +79,8 @@ export class SupabaseBookmarkRepository implements IBookmarkRepository {
         return { id: `bm-${Date.now()}`, userId, hackathonId, savedAt: payload.saved_at };
       }
 
-      const { data, error } = await supabase.from('saved_hackathons').insert([payload]).select().single();
+      const client = await this.getClient();
+      const { data, error } = await client.from('saved_hackathons').insert([payload]).select().single();
       if (error || !data) throw new DatabaseError(error?.message || 'Failed to save bookmark');
 
       return { id: data.id, userId: data.user_id, hackathonId: data.hackathon_id, savedAt: data.saved_at };
@@ -78,7 +93,8 @@ export class SupabaseBookmarkRepository implements IBookmarkRepository {
   public async delete(userId: string, hackathonId: string): Promise<void> {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) return;
-      const { error } = await supabase.from('saved_hackathons').delete().eq('user_id', userId).eq('hackathon_id', hackathonId);
+      const client = await this.getClient();
+      const { error } = await client.from('saved_hackathons').delete().eq('user_id', userId).eq('hackathon_id', hackathonId);
       if (error) throw new DatabaseError(error.message);
     } catch (err) {
       if (err instanceof DatabaseError) throw err;
@@ -88,7 +104,8 @@ export class SupabaseBookmarkRepository implements IBookmarkRepository {
   public async countByHackathon(hackathonId: string): Promise<number> {
     try {
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')) return 12;
-      const { count, error } = await supabase.from('saved_hackathons').select('*', { count: 'exact', head: true }).eq('hackathon_id', hackathonId);
+      const client = await this.getClient();
+      const { count, error } = await client.from('saved_hackathons').select('*', { count: 'exact', head: true }).eq('hackathon_id', hackathonId);
       if (error) return 0;
       return count || 0;
     } catch {

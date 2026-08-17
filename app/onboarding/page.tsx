@@ -42,8 +42,8 @@ export default function OnboardingPage() {
   const { profile, user, refreshProfile } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [fullName, setFullName] = useState(() => profile?.full_name || (profile as any)?.fullName || user?.email?.split('@')[0] || '');
-  const [username, setUsername] = useState(() => (profile?.full_name || (profile as any)?.fullName || user?.email?.split('@')[0] || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const [fullName, setFullName] = useState(() => profile?.full_name || user?.email?.split('@')[0] || '');
+  const [username, setUsername] = useState(() => (profile?.full_name || user?.email?.split('@')[0] || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [university, setUniversity] = useState('');

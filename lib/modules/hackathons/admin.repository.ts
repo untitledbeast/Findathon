@@ -1,4 +1,5 @@
-import { adminClient } from '@/lib/supabase-admin';
+import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { HackathonDTO } from './application/dtos/HackathonDTO';
 import { ValidationError } from '@/lib/errors';
 
@@ -18,12 +19,23 @@ export interface AdminStatsDTO {
 }
 
 export class AdminHackathonRepository {
+  private async getClient() {
+    if (typeof window === 'undefined') {
+      try {
+        return await createSupabaseServerClient();
+      } catch {
+        return supabase;
+      }
+    }
+    return supabase;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapToDTO(record: Record<string, any>): HackathonDTO {
     return {
       id: record.id,
       title: record.title,
-      slug: record.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      slug: record.title ? record.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '',
       description: record.description || '',
       startDate: record.start_date || new Date().toISOString(),
       endDate: record.end_date || new Date().toISOString(),
@@ -57,17 +69,41 @@ export class AdminHackathonRepository {
     const { page, pageSize } = pagination;
     const offset = (page - 1) * pageSize;
 
-    const { data, error, count } = await adminClient
+    const client = await this.getClient();
+    const { data, error, count } = await client
       .from('hackathons')
-      .select('*, submitter:profiles!submitted_by(full_name, email, avatar_url)', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
       .range(offset, offset + pageSize - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.findPending] Supabase error:', error);
+      throw new Error(error.message);
+    }
+
+    const submitterIds = Array.from(
+      new Set((data || []).map((h) => h.submitted_by).filter(Boolean))
+    );
+
+    const submittersMap: Record<string, { full_name?: string; email?: string; avatar_url?: string }> = {};
+    if (submitterIds.length > 0) {
+      try {
+        const { data: profiles } = await client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', submitterIds);
+
+        (profiles || []).forEach((p) => {
+          submittersMap[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url };
+        });
+      } catch {
+        // Ignore submitter enrichment error
+      }
+    }
 
     return {
-      data: (data || []).map(r => this.mapToDTO(r)),
+      data: (data || []).map(r => this.mapToDTO({ ...r, submitter: r.submitted_by ? submittersMap[r.submitted_by] : undefined })),
       total: count || 0
     };
   }
@@ -76,9 +112,10 @@ export class AdminHackathonRepository {
     const { page, pageSize } = pagination;
     const offset = (page - 1) * pageSize;
 
-    let query = adminClient
+    const client = await this.getClient();
+    let query = client
       .from('hackathons')
-      .select('*, submitter:profiles!submitted_by(full_name, email, avatar_url)', { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     if (filters.status) {
       query = query.eq('status', filters.status);
@@ -91,28 +128,70 @@ export class AdminHackathonRepository {
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.findAll] Supabase error:', error);
+      throw new Error(error.message);
+    }
+
+    const submitterIds = Array.from(
+      new Set((data || []).map((h) => h.submitted_by).filter(Boolean))
+    );
+
+    const submittersMap: Record<string, { full_name?: string; email?: string; avatar_url?: string }> = {};
+    if (submitterIds.length > 0) {
+      try {
+        const { data: profiles } = await client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', submitterIds);
+
+        (profiles || []).forEach((p) => {
+          submittersMap[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url };
+        });
+      } catch {
+        // Ignore submitter enrichment error
+      }
+    }
 
     return {
-      data: (data || []).map(r => this.mapToDTO(r)),
+      data: (data || []).map(r => this.mapToDTO({ ...r, submitter: r.submitted_by ? submittersMap[r.submitted_by] : undefined })),
       total: count || 0
     };
   }
 
   public async findById(id: string): Promise<HackathonDTO | null> {
-    const { data, error } = await adminClient
+    const client = await this.getClient();
+    const { data, error } = await client
       .from('hackathons')
-      .select('*, submitter:profiles!submitted_by(full_name, email, avatar_url)')
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error || !data) return null;
-    return this.mapToDTO(data);
+
+    let submitter;
+    if (data.submitted_by) {
+      try {
+        const { data: profile } = await client
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .eq('id', data.submitted_by)
+          .single();
+        if (profile) {
+          submitter = { full_name: profile.full_name, avatar_url: profile.avatar_url };
+        }
+      } catch {
+        // Ignore submitter fetch error
+      }
+    }
+
+    return this.mapToDTO({ ...data, submitter });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public async create(hackathonData: any): Promise<HackathonDTO> {
-    const { data, error } = await adminClient
+    const client = await this.getClient();
+    const { data, error } = await client
       .from('hackathons')
       .insert([{
         ...hackathonData,
@@ -131,7 +210,8 @@ export class AdminHackathonRepository {
   }
 
   public async approve(id: string, adminId: string): Promise<void> {
-    const { error } = await adminClient
+    const client = await this.getClient();
+    const { error } = await client
       .from('hackathons')
       .update({
         status: 'approved',
@@ -141,7 +221,10 @@ export class AdminHackathonRepository {
       })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.approve] Supabase error:', error);
+      throw new Error(error.message);
+    }
   }
 
   public async reject(id: string, adminId: string, reason: string): Promise<void> {
@@ -149,7 +232,8 @@ export class AdminHackathonRepository {
       throw new ValidationError('Rejection reason must be at least 10 characters long.');
     }
 
-    const { error } = await adminClient
+    const client = await this.getClient();
+    const { error } = await client
       .from('hackathons')
       .update({
         status: 'rejected',
@@ -159,11 +243,15 @@ export class AdminHackathonRepository {
       })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.reject] Supabase error:', error);
+      throw new Error(error.message);
+    }
   }
 
   public async requestChanges(id: string, adminId: string, message: string): Promise<void> {
-    const { error } = await adminClient
+    const client = await this.getClient();
+    const { error } = await client
       .from('hackathons')
       .update({
         status: 'pending',
@@ -173,45 +261,61 @@ export class AdminHackathonRepository {
       })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.requestChanges] Supabase error:', error);
+      throw new Error(error.message);
+    }
   }
 
   public async toggleVerified(id: string, verified: boolean): Promise<void> {
-    const { error } = await adminClient
+    const client = await this.getClient();
+    const { error } = await client
       .from('hackathons')
       .update({ is_verified: verified })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.toggleVerified] Supabase error:', error);
+      throw new Error(error.message);
+    }
   }
 
   public async delete(id: string): Promise<void> {
-    const { error } = await adminClient
+    const client = await this.getClient();
+    const { error } = await client
       .from('hackathons')
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('[AdminHackathonRepository.delete] Supabase error:', error);
+      throw new Error(error.message);
+    }
   }
 
   public async getStats(): Promise<AdminStatsDTO> {
+    const client = await this.getClient();
     const [
-      { count: pending },
-      { count: approved },
-      { count: rejected },
-      { count: total },
-      { count: totalUsers },
-      { count: totalReviews },
-      { data: viewsData }
+      { count: pending, error: e1 },
+      { count: approved, error: e2 },
+      { count: rejected, error: e3 },
+      { count: total, error: e4 },
+      { count: totalUsers, error: e5 },
+      { count: totalReviews, error: e6 },
+      { data: viewsData, error: e7 }
     ] = await Promise.all([
-      adminClient.from('hackathons').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      adminClient.from('hackathons').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-      adminClient.from('hackathons').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
-      adminClient.from('hackathons').select('*', { count: 'exact', head: true }),
-      adminClient.from('profiles').select('*', { count: 'exact', head: true }),
-      adminClient.from('reviews').select('*', { count: 'exact', head: true }),
-      adminClient.from('hackathons').select('view_count')
+      client.from('hackathons').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      client.from('hackathons').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+      client.from('hackathons').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
+      client.from('hackathons').select('*', { count: 'exact', head: true }),
+      client.from('profiles').select('*', { count: 'exact', head: true }),
+      client.from('reviews').select('*', { count: 'exact', head: true }),
+      client.from('hackathons').select('view_count')
     ]);
+
+    if (e1 || e2 || e3 || e4) {
+      console.error('[AdminHackathonRepository.getStats] errors:', { e1, e2, e3, e4, e5, e6, e7 });
+    }
 
     const totalViews = (viewsData || []).reduce((sum, h) => sum + (Number(h.view_count) || 0), 0);
 

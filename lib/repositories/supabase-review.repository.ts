@@ -1,14 +1,27 @@
 import { IReviewRepository } from '../domain/repositories/review.repository.interface';
 import { ReviewDTO, PaginationParams, ReviewDatabaseRow } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { ReviewMapper } from '../domain/mappers/review.mapper';
 import { DatabaseError } from '../errors';
 
 export class SupabaseReviewRepository implements IReviewRepository {
+  private async getClient() {
+    if (typeof window === 'undefined') {
+      try {
+        return await createSupabaseServerClient();
+      } catch {
+        return supabase;
+      }
+    }
+    return supabase;
+  }
+
   public async findByHackathon(hackathonId: string, pagination: PaginationParams): Promise<{ data: ReviewDTO[]; total: number }> {
     try {
       const offset = (pagination.page - 1) * pagination.pageSize;
-      const { data, count, error } = await supabase
+      const client = await this.getClient();
+      const { data, count, error } = await client
         .from('reviews')
         .select('*, profiles(*)', { count: 'exact' })
         .eq('hackathon_id', hackathonId)
@@ -26,7 +39,8 @@ export class SupabaseReviewRepository implements IReviewRepository {
 
   public async findByUser(userId: string): Promise<ReviewDTO[]> {
     try {
-      const { data, error } = await supabase.from('reviews').select('*, profiles(*)').eq('user_id', userId);
+      const client = await this.getClient();
+      const { data, error } = await client.from('reviews').select('*, profiles(*)').eq('user_id', userId);
       if (error || !data) return [];
       return data.map(row => ReviewMapper.rowToDTO(row as unknown as ReviewDatabaseRow));
     } catch {
@@ -36,7 +50,8 @@ export class SupabaseReviewRepository implements IReviewRepository {
 
   public async findOne(userId: string, hackathonId: string): Promise<ReviewDTO | null> {
     try {
-      const { data, error } = await supabase
+      const client = await this.getClient();
+      const { data, error } = await client
         .from('reviews')
         .select('*, profiles(*)')
         .eq('user_id', userId)
@@ -56,7 +71,8 @@ export class SupabaseReviewRepository implements IReviewRepository {
       payload.created_at = new Date().toISOString();
       payload.updated_at = new Date().toISOString();
 
-      const { data: inserted, error } = await supabase.from('reviews').insert([payload]).select('*, profiles(*)').single();
+      const client = await this.getClient();
+      const { data: inserted, error } = await client.from('reviews').insert([payload]).select('*, profiles(*)').single();
       if (error || !inserted) throw new DatabaseError(error?.message || 'Failed to create review');
 
       return ReviewMapper.rowToDTO(inserted as unknown as ReviewDatabaseRow);
@@ -71,7 +87,8 @@ export class SupabaseReviewRepository implements IReviewRepository {
       const payload = ReviewMapper.dtoToRow(data);
       payload.updated_at = new Date().toISOString();
 
-      const { data: updated, error } = await supabase.from('reviews').update(payload).eq('id', id).select('*, profiles(*)').single();
+      const client = await this.getClient();
+      const { data: updated, error } = await client.from('reviews').update(payload).eq('id', id).select('*, profiles(*)').single();
       if (error || !updated) throw new DatabaseError(error?.message || 'Failed to update review');
 
       return ReviewMapper.rowToDTO(updated as unknown as ReviewDatabaseRow);
@@ -83,7 +100,8 @@ export class SupabaseReviewRepository implements IReviewRepository {
 
   public async delete(id: string): Promise<void> {
     try {
-      const { error } = await supabase.from('reviews').delete().eq('id', id);
+      const client = await this.getClient();
+      const { error } = await client.from('reviews').delete().eq('id', id);
       if (error) throw new DatabaseError(error.message);
     } catch (err) {
       if (err instanceof DatabaseError) throw err;
@@ -92,7 +110,8 @@ export class SupabaseReviewRepository implements IReviewRepository {
 
   public async getAverageRating(hackathonId: string): Promise<number> {
     try {
-      const { data, error } = await supabase.from('reviews').select('rating').eq('hackathon_id', hackathonId);
+      const client = await this.getClient();
+      const { data, error } = await client.from('reviews').select('rating').eq('hackathon_id', hackathonId);
       if (error || !data || data.length === 0) return 5.0;
 
       const sum = data.reduce((acc, r) => acc + Number(r.rating || 0), 0);

@@ -1,20 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthModalProvider } from "@/components/AuthModal";
 import AuroraBackground from "@/components/AuroraBackground";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -35,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full dark`}>
+    <html lang="en" className="h-full dark">
       <body className="min-h-full flex flex-col bg-[#060816] text-[#F6F8FC] antialiased selection:bg-[#8B5CF6] selection:text-white">
         <AuthProvider>
           <AuthModalProvider>

@@ -25,6 +25,21 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
+import { HackathonDatabaseRow, NotificationDatabaseRow } from '@/types';
+
+interface SavedHackathonItem {
+  id: string;
+  hackathon_id: string;
+  saved_at: string;
+  hackathons: HackathonDatabaseRow;
+}
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number | null;
+}
 
 export default function AccountDashboardPage({
   searchParams,
@@ -32,20 +47,19 @@ export default function AccountDashboardPage({
   searchParams?: Promise<{ tab?: string }>;
 }) {
   const resolvedParams = searchParams ? use(searchParams) : { tab: 'dashboard' };
-  const initialTab = resolvedParams?.tab || 'dashboard';
+  const activeTab = resolvedParams?.tab || 'dashboard';
 
   const router = useRouter();
   const { user, profile, role, loading: authLoading, signOut, refreshProfile } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [loadingStats, setLoadingStats] = useState(true);
 
   // Data
   const [stats, setStats] = useState({ saved: 0, submissions: 0, notifications: 0 });
-  const [savedHackathons, setSavedHackathons] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [savedHackathons, setSavedHackathons] = useState<SavedHackathonItem[]>([]);
+  const [submissions, setSubmissions] = useState<HackathonDatabaseRow[]>([]);
+  const [notifications, setNotifications] = useState<NotificationDatabaseRow[]>([]);
+  const [reviews, setReviews] = useState<{ id: string }[]>([]);
 
   // Profile form — uses snake_case to match DB exactly
   const [formData, setFormData] = useState({
@@ -59,6 +73,26 @@ export default function AccountDashboardPage({
     social_instagram: '',
     social_discord: '',
   });
+  const [syncedProfileId, setSyncedProfileId] = useState<string | null>(null);
+
+  if (profile && profile.id !== syncedProfileId) {
+    setSyncedProfileId(profile.id);
+    setFormData({
+      full_name: profile.full_name || '',
+      bio: profile.bio || '',
+      organization: profile.organization || '',
+      phone: profile.phone || '',
+      website: profile.website || '',
+      social_twitter: profile.social_twitter || '',
+      social_linkedin: profile.social_linkedin || '',
+      social_instagram: profile.social_instagram || '',
+      social_discord: profile.social_discord || '',
+    });
+  }
+
+  const setActiveTab = (tab: string) => {
+    router.push(`/account?tab=${tab}`, { scroll: false });
+  };
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -66,34 +100,12 @@ export default function AccountDashboardPage({
   const [deleteInput, setDeleteInput] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Sync tab from URL
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
-
   // Auth guard
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/');
     }
   }, [user, authLoading, router]);
-
-  // Sync profile → form (snake_case)
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        full_name: profile.full_name || '',
-        bio: profile.bio || '',
-        organization: profile.organization || '',
-        phone: profile.phone || '',
-        website: profile.website || '',
-        social_twitter: profile.social_twitter || '',
-        social_linkedin: profile.social_linkedin || '',
-        social_instagram: profile.social_instagram || '',
-        social_discord: profile.social_discord || '',
-      });
-    }
-  }, [profile]);
 
   // Fetch all dashboard data directly from Supabase (avoids broken API routes)
   useEffect(() => {
@@ -140,14 +152,14 @@ export default function AccountDashboardPage({
         const notifs = notifsRes.data || [];
         const revs = reviewsRes.data || [];
 
-        setSavedHackathons(saved);
-        setSubmissions(subs);
-        setNotifications(notifs);
-        setReviews(revs);
+        setSavedHackathons(saved as unknown as SavedHackathonItem[]);
+        setSubmissions(subs as unknown as HackathonDatabaseRow[]);
+        setNotifications(notifs as unknown as NotificationDatabaseRow[]);
+        setReviews(revs as unknown as { id: string }[]);
         setStats({
           saved: saved.length,
           submissions: subs.length,
-          notifications: notifs.filter((n: any) => !n.is_read).length,
+          notifications: notifs.filter((n) => !n.is_read).length,
         });
       } catch (e) {
         console.error('[Dashboard] fetchAllData error:', e);
@@ -166,7 +178,7 @@ export default function AccountDashboardPage({
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           if (!isMounted) return;
-          setNotifications((prev) => [payload.new as any, ...prev]);
+          setNotifications((prev) => [payload.new as unknown as NotificationDatabaseRow, ...prev]);
           setStats((prev) => ({ ...prev, notifications: prev.notifications + 1 }));
         }
       )
@@ -194,8 +206,9 @@ export default function AccountDashboardPage({
       if (error) throw error;
       await refreshProfile();
       showToast('Profile saved!', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save';
+      showToast(message, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -241,7 +254,7 @@ export default function AccountDashboardPage({
     .sort((a, b) => new Date(a.hackathons.start_date).getTime() - new Date(b.hackathons.start_date).getTime())
     .slice(0, 3);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
     { id: 'profile', label: 'My Profile', icon: UserIcon },
     { id: 'saved', label: 'Saved Hackathons', icon: Bookmark },
@@ -252,7 +265,7 @@ export default function AccountDashboardPage({
   ];
 
   if (role === 'admin' || role === 'moderator') {
-    navItems.push({ id: 'admin', label: 'Admin Panel', icon: ShieldCheck } as any);
+    navItems.push({ id: 'admin', label: 'Admin Panel', icon: ShieldCheck });
   }
 
   // Loading / unauthed guard
@@ -341,11 +354,11 @@ export default function AccountDashboardPage({
                       <item.icon className="w-4 h-4" />
                       <span>{item.label}</span>
                     </div>
-                    {(item as any).badge && (
+                    {item.badge ? (
                       <span className="px-2 py-0.5 rounded-full bg-rose-500 text-[10px] text-white font-bold">
-                        {(item as any).badge}
+                        {item.badge}
                       </span>
-                    )}
+                    ) : null}
                   </button>
                 )
               )}
@@ -739,8 +752,8 @@ export default function AccountDashboardPage({
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-white text-sm">{n.title}</h4>
-                      <p className="text-xs text-slate-300 mt-1">{n.message || n.body}</p>
-                      <p className="text-[10px] text-slate-500 mt-2">{new Date(n.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-slate-300 mt-1">{n.body}</p>
+                      <p className="text-[10px] text-slate-500 mt-2">{n.created_at ? new Date(n.created_at).toLocaleString() : ''}</p>
                     </div>
                     {!n.is_read && <div className="w-2 h-2 rounded-full bg-purple-500 mt-2 shrink-0" />}
                   </div>
@@ -748,7 +761,7 @@ export default function AccountDashboardPage({
               ) : (
                 <div className="glass-card rounded-2xl border border-purple-900/30 p-12 text-center">
                   <Bell className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-slate-300 mb-2">You're all caught up! 🎉</h3>
+                  <h3 className="text-xl font-bold text-slate-300 mb-2">You&apos;re all caught up! 🎉</h3>
                   <p className="text-slate-500 text-sm">No new notifications right now</p>
                 </div>
               )}
@@ -814,7 +827,7 @@ export default function AccountDashboardPage({
             <h3 className="text-xl font-bold text-red-400 mb-2">Delete Account</h3>
             <p className="text-sm text-slate-300 mb-4">This permanently deletes your profile, saved hackathons, and submissions.</p>
             <div className="mb-6">
-              <label className="block text-xs font-bold text-slate-300 mb-2">Type "DELETE" to confirm</label>
+              <label className="block text-xs font-bold text-slate-300 mb-2">Type &quot;DELETE&quot; to confirm</label>
               <input type="text" value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)}
                 className="w-full bg-slate-950 border border-red-900/40 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500 outline-none text-sm" />
             </div>

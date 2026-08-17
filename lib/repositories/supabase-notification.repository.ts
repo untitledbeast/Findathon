@@ -1,14 +1,27 @@
 import { INotificationRepository } from '../domain/repositories/notification.repository.interface';
 import { NotificationDTO, PaginationParams, NotificationDatabaseRow } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { NotificationMapper } from '../domain/mappers/notification.mapper';
 import { DatabaseError } from '../errors';
 
 export class SupabaseNotificationRepository implements INotificationRepository {
+  private async getClient() {
+    if (typeof window === 'undefined') {
+      try {
+        return await createSupabaseServerClient();
+      } catch {
+        return supabase;
+      }
+    }
+    return supabase;
+  }
+
   public async findByUser(userId: string, pagination: PaginationParams): Promise<{ data: NotificationDTO[]; total: number }> {
     try {
       const offset = (pagination.page - 1) * pagination.pageSize;
-      const { data, count, error } = await supabase
+      const client = await this.getClient();
+      const { data, count, error } = await client
         .from('notifications')
         .select('*', { count: 'exact' })
         .eq('user_id', userId)
@@ -26,7 +39,8 @@ export class SupabaseNotificationRepository implements INotificationRepository {
 
   public async findUnreadCount(userId: string): Promise<number> {
     try {
-      const { count, error } = await supabase
+      const client = await this.getClient();
+      const { count, error } = await client
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -41,7 +55,8 @@ export class SupabaseNotificationRepository implements INotificationRepository {
 
   public async markRead(notificationId: string, userId: string): Promise<void> {
     try {
-      const { error } = await supabase
+      const client = await this.getClient();
+      const { error } = await client
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId)
@@ -55,7 +70,8 @@ export class SupabaseNotificationRepository implements INotificationRepository {
 
   public async markAllRead(userId: string): Promise<void> {
     try {
-      const { error } = await supabase
+      const client = await this.getClient();
+      const { error } = await client
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId);
@@ -71,7 +87,8 @@ export class SupabaseNotificationRepository implements INotificationRepository {
       const payload = NotificationMapper.dtoToRow(data);
       payload.created_at = new Date().toISOString();
 
-      const { data: inserted, error } = await supabase.from('notifications').insert([payload]).select().single();
+      const client = await this.getClient();
+      const { data: inserted, error } = await client.from('notifications').insert([payload]).select().single();
       if (error || !inserted) throw new DatabaseError(error?.message || 'Failed to create notification');
 
       return NotificationMapper.rowToDTO(inserted as unknown as NotificationDatabaseRow);
@@ -89,7 +106,8 @@ export class SupabaseNotificationRepository implements INotificationRepository {
         return row;
       });
 
-      const { error } = await supabase.from('notifications').insert(payloads);
+      const client = await this.getClient();
+      const { error } = await client.from('notifications').insert(payloads);
       if (error) throw new DatabaseError(error.message);
     } catch (err) {
       if (err instanceof DatabaseError) throw err;

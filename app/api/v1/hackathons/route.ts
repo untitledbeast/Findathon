@@ -111,7 +111,10 @@ export async function GET(req: NextRequest) {
         formatError(result.error);
 
       return NextResponse.json(
-        errorResponse,
+        {
+          success: false,
+          error: errorResponse
+        },
         {
           status:
             result.error.statusCode
@@ -145,7 +148,10 @@ export async function GET(req: NextRequest) {
       formatError(err);
 
     return NextResponse.json(
-      formatted,
+      {
+        success: false,
+        error: formatted
+      },
       {
         status:
           formatted.statusCode
@@ -187,7 +193,10 @@ export async function POST(req: NextRequest) {
         });
 
       return NextResponse.json(
-        errorResponse,
+        {
+          success: false,
+          error: errorResponse
+        },
         {
           status: 401
         }
@@ -218,6 +227,18 @@ export async function POST(req: NextRequest) {
     // 4. Support frontend aliases
     // --------------------------------------------------
 
+    if (body.start_date && !body.startDate) {
+      body.startDate = body.start_date;
+    }
+
+    if (body.end_date && !body.endDate) {
+      body.endDate = body.end_date;
+    }
+
+    if (body.registration_deadline && !body.registrationDeadline) {
+      body.registrationDeadline = body.registration_deadline;
+    }
+
     /**
      * Some clients may send registrationUrl
      * instead of registerUrl.
@@ -228,6 +249,14 @@ export async function POST(req: NextRequest) {
     ) {
       body.registerUrl =
         body.registrationUrl;
+    }
+
+    if (
+      body.registerUrl &&
+      typeof body.registerUrl === 'string' &&
+      !/^https?:\/\//i.test(body.registerUrl.trim())
+    ) {
+      body.registerUrl = `https://${body.registerUrl.trim()}`;
     }
 
     /**
@@ -265,7 +294,7 @@ export async function POST(req: NextRequest) {
         : validatedData.contactName &&
           validatedData.contactName.trim().length > 0
           ? validatedData.contactName
-          : user.user_metadata?.full_name ||
+          : user.fullName ||
           user.email?.split('@')[0] ||
           'Community Organizer';
 
@@ -340,7 +369,10 @@ export async function POST(req: NextRequest) {
         formatError(result.error);
 
       return NextResponse.json(
-        errorResponse,
+        {
+          success: false,
+          error: errorResponse
+        },
         {
           status:
             result.error.statusCode
@@ -422,7 +454,10 @@ export async function POST(req: NextRequest) {
       formatError(err);
 
     return NextResponse.json(
-      formatted,
+      {
+        success: false,
+        error: formatted
+      },
       {
         status:
           formatted.statusCode

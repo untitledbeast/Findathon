@@ -44,12 +44,10 @@ export default function NavbarAuthSection({ variant, onClose }: NavbarAuthSectio
 
   const avatarUrl =
     profile?.avatar_url ||
-    (profile as any)?.avatarUrl ||
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture;
   const userName =
     profile?.full_name ||
-    (profile as any)?.fullName ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email?.split('@')[0] ||
