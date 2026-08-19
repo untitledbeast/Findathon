@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
+import DeveloperIntelligence from '@/components/DeveloperIntelligence';
+import HackathonRecommendations from '@/components/recommendations/HackathonRecommendations';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import {
@@ -24,6 +26,8 @@ import {
   TriangleAlert,
   ShieldCheck,
   X,
+  Brain,
+  Code2
 } from 'lucide-react';
 import { HackathonDatabaseRow, NotificationDatabaseRow } from '@/types';
 
@@ -256,6 +260,7 @@ export default function AccountDashboardPage({
 
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
+    { id: 'intelligence', label: 'Developer Intelligence', icon: Brain },
     { id: 'profile', label: 'My Profile', icon: UserIcon },
     { id: 'saved', label: 'Saved Hackathons', icon: Bookmark },
     { id: 'submissions', label: 'My Submissions', icon: FileText },
@@ -436,6 +441,9 @@ export default function AccountDashboardPage({
                 </div>
               </div>
 
+              {/* Personalized Hackathon Recommendations */}
+              <HackathonRecommendations onOpenIntelligenceTab={() => setActiveTab('intelligence')} />
+
               {/* Upcoming saved */}
               <div className="glass-card rounded-2xl border border-purple-900/30 p-6">
                 <h3 className="font-bold text-white mb-4 flex items-center gap-2">
@@ -487,6 +495,13 @@ export default function AccountDashboardPage({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* TAB: DEVELOPER INTELLIGENCE */}
+          {activeTab === 'intelligence' && (
+            <div className="space-y-6 animate-fade-in-up">
+              <DeveloperIntelligence />
             </div>
           )}
 
@@ -602,6 +617,8 @@ export default function AccountDashboardPage({
                   </button>
                 </div>
               </form>
+
+              <DeveloperIntelligence />
             </div>
           )}
 

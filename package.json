@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npx tsx tests/match-engine.test.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.68.0",

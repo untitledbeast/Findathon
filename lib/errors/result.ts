@@ -1,4 +1,4 @@
-import { BaseError } from './index';
+import { BaseError } from './base.error';
 
 export type Result<T, E = BaseError> =
   | { ok: true; value: T; error?: undefined }

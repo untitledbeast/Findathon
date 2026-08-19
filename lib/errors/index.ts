@@ -1,16 +1,7 @@
 import { ERROR_CODES, ErrorCode } from '@/constants/error-codes';
+import { BaseError } from './base.error';
 
-export class BaseError extends Error {
-  constructor(
-    public override message: string,
-    public code: ErrorCode | string = ERROR_CODES.INTERNAL_ERROR,
-    public statusCode: number = 500,
-    public details?: unknown
-  ) {
-    super(message);
-    this.name = this.constructor.name;
-  }
-}
+export { BaseError } from './base.error';
 
 export class ValidationError extends BaseError {
   constructor(message: string, details?: unknown) {
@@ -70,3 +61,7 @@ export function formatError(err: unknown) {
     statusCode: 500
   };
 }
+
+export * from './github.errors';
+export * from './leetcode.errors';
+export * from './result';

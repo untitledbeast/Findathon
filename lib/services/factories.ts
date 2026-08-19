@@ -3,6 +3,9 @@ import { SupabaseReviewRepository } from '../repositories/supabase-review.reposi
 import { SupabaseBookmarkRepository } from '../repositories/supabase-bookmark.repository';
 import { SupabaseProfileRepository } from '../repositories/supabase-profile.repository';
 import { SupabaseNotificationRepository } from '../repositories/supabase-notification.repository';
+import { SupabaseDeveloperProfileRepository } from '../repositories/supabase-developer-profile.repository';
+import { GitHubProvider } from '../providers/github.provider';
+import { LeetCodeProvider } from '../providers/leetcode.provider';
 import { CacheService } from '../cache';
 import { eventBus } from '../domain/events/event-bus';
 import { SupabaseSearchProvider } from '../infrastructure/search';
@@ -14,6 +17,9 @@ import { ReviewQueryService, ReviewCommandService } from './review.service';
 import { BookmarkQueryService, BookmarkCommandService } from './bookmark.service';
 import { NotificationQueryService, NotificationCommandService } from './notification.service';
 import { SearchQueryService } from './search.service';
+import { DeveloperProfileQueryService } from './developer-profile-query.service';
+import { DeveloperProfileCommandService } from './developer-profile-command.service';
+import { HackathonRecommendationService } from './hackathon-recommendation.service';
 
 export function createHackathonRepository() {
   return new SupabaseHackathonRepository();
@@ -33,6 +39,18 @@ export function createProfileRepository() {
 
 export function createNotificationRepository() {
   return new SupabaseNotificationRepository();
+}
+
+export function createDeveloperProfileRepository() {
+  return new SupabaseDeveloperProfileRepository();
+}
+
+export function createGitHubProvider() {
+  return new GitHubProvider();
+}
+
+export function createLeetCodeProvider() {
+  return new LeetCodeProvider();
 }
 
 export function createCacheService() {
@@ -87,3 +105,21 @@ export function createNotificationCommandService() {
 export function createSearchQueryService() {
   return new SearchQueryService(createSearchProvider(), createCacheService());
 }
+
+export function createDeveloperProfileQueryService() {
+  return new DeveloperProfileQueryService(createDeveloperProfileRepository());
+}
+
+export function createDeveloperProfileCommandService() {
+  return new DeveloperProfileCommandService(
+    createDeveloperProfileRepository(),
+    createGitHubProvider(),
+    createLeetCodeProvider()
+  );
+}
+
+export function createHackathonRecommendationService() {
+  return new HackathonRecommendationService(createDeveloperProfileRepository());
+}
+
+

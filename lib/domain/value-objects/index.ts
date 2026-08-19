@@ -412,3 +412,7 @@ export class HackathonStatusState {
   public equals(other?: HackathonStatusState | null): boolean { return !!other && other.getValue() === this.current; }
   public toString(): string { return this.current; }
 }
+
+export * from './skill-score';
+export * from './developer-skill-profile';
+

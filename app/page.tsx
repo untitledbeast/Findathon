@@ -2,31 +2,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
+import HomepageRecommendations from '@/components/recommendations/HomepageRecommendations';
 import { SpotlightProvider, useSpotlight } from '@/components/SpotlightSearch';
 import { useHomepageData } from '@/hooks/useHomepageData';
-import { useRecommendations } from '@/hooks/useRecommendations';
 import { useSearch } from '@/hooks/useSearch';
 import {
   Search,
   Sparkles,
   MapPin,
-  Flame,
   Trophy,
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Layers,
-  Cpu,
-  Shield,
-  Cloud,
-  Smartphone,
-  Palette,
-  Globe,
   Grid,
   List
 } from 'lucide-react';
@@ -234,72 +222,8 @@ function mapDtoToHackathon(input: unknown) {
   } as unknown as import('@/lib/supabase').Hackathon;
 }
 
-function FeaturedCarouselSection({ featured }: { featured: unknown[] }) {
-  const carouselRef = useRef<HTMLDivElement>(null);
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (carouselRef.current) {
-      const scrollAmount = direction === 'left' ? -340 : 340;
-      carouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
-
-  return (
-    <section className="py-16 px-4 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2">
-            <Flame className="w-6 h-6 text-amber-400" /> Featured Hackathons
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">Hand-picked premier global competitions with massive prize pools</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => scroll('left')}
-            className="p-2.5 rounded-full glass-card border border-purple-900/30 text-slate-400 hover:text-white hover:border-purple-500 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => scroll('right')}
-            className="p-2.5 rounded-full glass-card border border-purple-900/30 text-slate-400 hover:text-white hover:border-purple-500 transition-colors"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      <div
-        ref={carouselRef}
-        className="flex gap-6 overflow-x-auto scrollbar-none py-4 px-1"
-      >
-        {featured.length > 0 ? (
-          featured.map((h: unknown, idx: number) => {
-            const item = (h || {}) as Record<string, unknown>;
-            return (
-              <div key={String(item.id || idx)} className="w-80 shrink-0">
-                <HackathonCard hackathon={mapDtoToHackathon(item)} />
-              </div>
-            );
-          })
-        ) : (
-          [1, 2, 3].map((i) => (
-            <div key={i} className="w-80 h-96 glass-card rounded-3xl p-4 animate-pulse space-y-4 shrink-0">
-              <div className="w-full h-44 bg-slate-900/80 rounded-2xl shimmer" />
-              <div className="h-4 w-3/4 bg-slate-900/80 rounded shimmer" />
-              <div className="h-4 w-1/2 bg-slate-900/80 rounded shimmer" />
-            </div>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-
 function MainAppContent() {
   const { data: homeData } = useHomepageData();
-  const { data: recData } = useRecommendations();
   const searchHook = useSearch();
 
   const [activeFilterTab, setActiveFilterTab] = useState<'all' | 'online' | 'offline' | 'ai' | 'web3'>('all');
@@ -325,8 +249,8 @@ function MainAppContent() {
         {/* SECTION 2: LIVE STATS */}
         <LiveStatsSection stats={homeData?.stats} />
 
-        {/* SECTION 3: FEATURED CAROUSEL */}
-        <FeaturedCarouselSection featured={homeData?.featured || []} />
+        {/* SECTION 3: INTELLIGENT RECOMMENDATIONS */}
+        <HomepageRecommendations />
 
         {/* SECTION 4: TRENDING TAGS */}
         <section className="py-12 px-4 max-w-7xl mx-auto space-y-6">
@@ -349,30 +273,6 @@ function MainAppContent() {
             ))}
           </div>
         </section>
-
-        {/* SECTION 5: PERSONALIZED RECOMMENDATIONS (If auth user) */}
-        {recData.length > 0 && (
-          <section className="py-12 px-4 max-w-7xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-black text-white flex items-center gap-2">
-                  🎯 Recommended for You
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">Based on your interests in AI & Web3</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recData.slice(0, 3).map((h) => (
-                <div key={h.id} className="relative">
-                  <div className="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 backdrop-blur-md">
-                    Matches AI interest
-                  </div>
-                  <HackathonCard hackathon={mapDtoToHackathon(h)} />
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* SECTION 6: CURATED COLLECTIONS */}
         <section className="py-16 px-4 max-w-7xl mx-auto space-y-6">
