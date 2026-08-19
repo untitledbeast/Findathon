@@ -466,25 +466,22 @@ function DiscoveryPlatformContent() {
           <div className="flex items-center p-1 rounded-full bg-slate-950/80 border border-purple-900/40 shadow-inner">
             <button
               onClick={() => handleViewModeChange('map')}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'map' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'map' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
             >
               <MapIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Map</span>
             </button>
             <button
               onClick={() => handleViewModeChange('list')}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'list' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
             >
               <ListIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">List</span>
             </button>
             <button
               onClick={() => handleViewModeChange('calendar')}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'calendar' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-              }`}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'calendar' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
             >
               <CalendarIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Calendar</span>
             </button>
@@ -531,176 +528,179 @@ function DiscoveryPlatformContent() {
 
           <button
             onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-            className="md:hidden p-2 rounded-full bg-slate-950/80 border border-purple-500/40 text-slate-300 hover:text-white"
+            title="Filter options"
+            className="p-2 rounded-full bg-slate-950/80 border border-purple-500/40 text-slate-300 hover:text-white hover:bg-purple-600/30 transition-all shadow-md"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* 3. FLOATING LEFT SIDEBAR */}
-      <aside className="fixed top-20 left-3 sm:top-20 sm:left-4 md:left-6 lg:left-8 bottom-6 z-30 w-72 sm:w-80 md:w-84 max-h-[calc(100vh-6rem)] hidden md:flex flex-col bg-[#0D1224]/85 backdrop-blur-2xl border border-purple-500/30 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(139,92,246,0.15)] overflow-hidden transition-all duration-300">
-        <div className="p-4 border-b border-purple-900/30 space-y-2 bg-slate-950/40 shrink-0">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-purple-400" /> Discovery Controls
-            </h4>
-            <span className="text-[10px] font-bold text-purple-400 font-mono-num px-2 py-0.5 rounded-full bg-purple-950/80 border border-purple-500/30">
-              {filteredHackathons.length} Events
-            </span>
-          </div>
+      {/* 3. FLOATING LEFT SIDEBAR (Map Mode Only) */}
+      {viewMode === 'map' && (
+        <aside className="fixed top-20 left-3 sm:top-20 sm:left-4 md:left-6 lg:left-8 bottom-6 z-30 w-72 sm:w-80 md:w-84 max-h-[calc(100vh-6rem)] hidden md:flex flex-col bg-[#0D1224]/85 backdrop-blur-2xl border border-purple-500/30 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_0_20px_rgba(139,92,246,0.15)] overflow-hidden transition-all duration-300">
+          <div className="p-4 border-b border-purple-900/30 space-y-2 bg-slate-950/40 shrink-0">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-purple-400" /> Discovery Controls
+              </h4>
+              <span className="text-[10px] font-bold text-purple-400 font-mono-num px-2 py-0.5 rounded-full bg-purple-950/80 border border-purple-500/30">
+                {filteredHackathons.length} Events
+              </span>
+            </div>
 
-          <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-slate-300 pt-1">
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#00FFA3]" /> Open</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" /> Closing Soon</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CC9F0]" /> Online</div>
-            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6]" /> Featured</div>
-          </div>
-        </div>
-
-        {/* Filter Controls */}
-        <div className="p-4 space-y-4 border-b border-purple-900/30 shrink-0 bg-slate-950/20">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status</label>
-            <div className="flex flex-wrap gap-1">
-              {(['all', 'open', 'closing_soon', 'closed'] as const).map((st) => (
-                <button
-                  key={st}
-                  onClick={() => handleFilterChange(prev => ({ ...prev, status: st }))}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize border transition-all ${
-                    filters.status === st
-                      ? 'bg-purple-600 text-white border-purple-400 shadow-md'
-                      : 'bg-slate-950/60 text-slate-400 border-purple-900/30 hover:text-white'
-                  }`}
-                >
-                  {st.replace('_', ' ')}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-slate-300 pt-1">
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#00FFA3]" /> Open</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" /> Closing Soon</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CC9F0]" /> Online</div>
+              <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6]" /> Featured</div>
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category Tags</label>
-            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto scrollbar-none">
-              {CATEGORY_TAGS.map((tag) => {
-                const selected = filters.tags.includes(tag);
-                return (
+          {/* Filter Controls */}
+          <div className="p-4 space-y-4 border-b border-purple-900/30 shrink-0 bg-slate-950/20">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status</label>
+              <div className="flex flex-wrap gap-1">
+                {(['all', 'open', 'closing_soon', 'closed'] as const).map((st) => (
                   <button
-                    key={tag}
-                    onClick={() => {
-                      handleFilterChange(prev => ({
-                        ...prev,
-                        tags: selected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
-                      }));
-                    }}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
-                      selected
-                        ? 'bg-purple-600 text-white border-purple-400'
+                    key={st}
+                    onClick={() => handleFilterChange(prev => ({ ...prev, status: st }))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize border transition-all ${
+                      filters.status === st
+                        ? 'bg-purple-600 text-white border-purple-400 shadow-md'
                         : 'bg-slate-950/60 text-slate-400 border-purple-900/30 hover:text-white'
                     }`}
                   >
-                    #{tag}
+                    {st.replace('_', ' ')}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 text-xs">
-            <span className="text-slate-300 font-medium">Online Events Only</span>
-            <button
-              onClick={() => handleFilterChange(prev => ({ ...prev, onlineOnly: !prev.onlineOnly }))}
-              className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
-                filters.onlineOnly ? 'bg-purple-600' : 'bg-slate-800'
-              }`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                filters.onlineOnly ? 'translate-x-4' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
-        </div>
-
-        {/* Results List or Empty State */}
-        <div className="flex-1 p-3 space-y-2 overflow-y-auto scrollbar-none">
-          {loading ? (
-            <div className="p-8 text-center space-y-3">
-              <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-xs text-slate-400">Loading map hackathons...</p>
-            </div>
-          ) : filteredHackathons.length > 0 ? (
-            filteredHackathons.map((h) => {
-              const isSelected = selectedHackathon?.id === h.id;
-              const status = getMarkerStatus(h);
-              const color = MARKER_COLORS[status];
-
-              return (
-                <div
-                  key={h.id}
-                  onClick={() => {
-                    setSelectedHackathon(h);
-                    setBottomSheetOpen(true);
-                    updateUrlParams(filters, viewMode, h.id);
-                    if (h.latitude && h.longitude && mapRef.current) {
-                      mapRef.current.flyTo([Number(h.latitude), Number(h.longitude)], 12, { duration: 1 });
-                    }
-                  }}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer space-y-1 ${
-                    isSelected
-                      ? 'border-purple-500 bg-purple-950/60 shadow-lg'
-                      : 'border-purple-900/20 bg-slate-950/40 hover:border-purple-500/40 hover:bg-slate-900/60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h5 className="text-xs font-bold text-white truncate">{h.title}</h5>
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                    <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
-                    <span className="truncate">{h.is_online ? 'Online' : h.location_city || 'In-Person'}</span>
-                    {h.prize_pool && (
-                      <span className="ml-auto text-amber-300 font-mono-num">{h.prize_pool}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="py-12 text-center text-xs text-slate-400 space-y-3 px-4">
-              <div className="w-12 h-12 rounded-full bg-purple-950/50 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400">
-                <MapPin className="w-6 h-6" />
+                ))}
               </div>
-              <div>
-                <p className="font-bold text-white text-sm">No events match filters</p>
-                <p className="text-[11px] text-slate-400 mt-1">Try resetting search query, status, or timeline slider.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Category Tags</label>
+              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto scrollbar-none">
+                {CATEGORY_TAGS.map((tag) => {
+                  const selected = filters.tags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        handleFilterChange(prev => ({
+                          ...prev,
+                          tags: selected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
+                        }));
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all ${
+                        selected
+                          ? 'bg-purple-600 text-white border-purple-400'
+                          : 'bg-slate-950/60 text-slate-400 border-purple-900/30 hover:text-white'
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <span className="text-slate-300 font-medium">Online Events Only</span>
               <button
-                onClick={() => {
-                  setTimelineDays(180);
-                  handleFilterChange(() => ({ search: '', tags: [], onlineOnly: false, prizeMin: 0, status: 'all' }));
-                }}
-                className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shadow-md"
+                onClick={() => handleFilterChange(prev => ({ ...prev, onlineOnly: !prev.onlineOnly }))}
+                className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
+                  filters.onlineOnly ? 'bg-purple-600' : 'bg-slate-800'
+                }`}
               >
-                Reset Filters
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                  filters.onlineOnly ? 'translate-x-4' : 'translate-x-0'
+                }`} />
               </button>
             </div>
-          )}
-        </div>
-      </aside>
+          </div>
 
-      {/* 4. LIST & CALENDAR OVERLAYS */}
+          {/* Results List or Empty State */}
+          <div className="flex-1 p-3 space-y-2 overflow-y-auto scrollbar-none">
+            {loading ? (
+              <div className="p-8 text-center space-y-3">
+                <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-slate-400">Loading map hackathons...</p>
+              </div>
+            ) : filteredHackathons.length > 0 ? (
+              filteredHackathons.map((h) => {
+                const isSelected = selectedHackathon?.id === h.id;
+                const status = getMarkerStatus(h);
+                const color = MARKER_COLORS[status];
+
+                return (
+                  <div
+                    key={h.id}
+                    onClick={() => {
+                      setSelectedHackathon(h);
+                      setBottomSheetOpen(true);
+                      updateUrlParams(filters, viewMode, h.id);
+                      if (h.latitude && h.longitude && mapRef.current) {
+                        mapRef.current.flyTo([Number(h.latitude), Number(h.longitude)], 12, { duration: 1 });
+                      }
+                    }}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer space-y-1 ${
+                      isSelected
+                        ? 'border-purple-500 bg-purple-950/60 shadow-lg'
+                        : 'border-purple-900/20 bg-slate-950/40 hover:border-purple-500/40 hover:bg-slate-900/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <h5 className="text-xs font-bold text-white truncate">{h.title}</h5>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <MapPin className="w-3 h-3 text-purple-400 shrink-0" />
+                      <span className="truncate">{h.is_online ? 'Online' : h.location_city || 'In-Person'}</span>
+                      {h.prize_pool && (
+                        <span className="ml-auto text-amber-300 font-mono-num">{h.prize_pool}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="py-12 text-center text-xs text-slate-400 space-y-3 px-4">
+                <div className="w-12 h-12 rounded-full bg-purple-950/50 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="font-bold text-white text-sm">No events match filters</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Try resetting search query, status, or timeline slider.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setTimelineDays(180);
+                    handleFilterChange(() => ({ search: '', tags: [], onlineOnly: false, prizeMin: 0, status: 'all' }));
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shadow-md"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* 4. LIST & CALENDAR OVERLAY VIEWS (Only rendered when viewMode is NOT 'map') */}
       {viewMode !== 'map' && (
-        <div className="absolute inset-0 z-20 pt-20 pb-8 px-4 sm:px-8 max-w-7xl mx-auto h-full overflow-y-auto scrollbar-none bg-[#060816]/95 backdrop-blur-3xl">
+        <div className="absolute inset-0 z-20 pt-20 pb-8 px-4 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto h-full overflow-y-auto scrollbar-none bg-[#060816]/95 backdrop-blur-3xl">
           {viewMode === 'list' && (
-            <div className="space-y-6 pt-4">
+            <div className="space-y-6 pt-4 pb-12">
               <div className="flex items-center justify-between border-b border-purple-900/30 pb-4">
-                <h3 className="text-xl font-black text-white">Ranked Hackathon List</h3>
-                <span className="text-xs font-bold text-purple-400 font-mono-num">{filteredHackathons.length} hackathons</span>
+                <h3 className="text-xl sm:text-2xl font-black text-white">Ranked Discovery List</h3>
+                <span className="text-xs sm:text-sm font-bold text-purple-400 font-mono-num">{filteredHackathons.length} hackathons found</span>
               </div>
 
               {filteredHackathons.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {filteredHackathons.map((h) => (
                     <HackathonCard
                       key={h.id}
@@ -711,16 +711,67 @@ function DiscoveryPlatformContent() {
                   ))}
                 </div>
               ) : (
-                <div className="py-16 text-center text-slate-400">
-                  <p>No hackathons match criteria</p>
+                <div className="py-20 text-center text-slate-400 space-y-4">
+                  <p className="text-base font-semibold">No hackathons match your filter criteria.</p>
+                  <button
+                    onClick={() => handleFilterChange(() => ({ search: '', tags: [], onlineOnly: false, prizeMin: 0, status: 'all' }))}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors"
+                  >
+                    Reset All Filters
+                  </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {viewMode === 'calendar' && (
+            <div className="space-y-6 pt-4 pb-12">
+              <div className="flex items-center justify-between border-b border-purple-900/30 pb-4">
+                <h3 className="text-xl sm:text-2xl font-black text-white">Hackathon Event Calendar</h3>
+                <span className="text-xs sm:text-sm font-bold text-purple-400 font-mono-num">Event Schedule</span>
+              </div>
+
+              <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 pb-2">
+                <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+              </div>
+
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 31 }).map((_, idx) => {
+                  const dayNum = idx + 1;
+                  const dateStr = `-${dayNum < 10 ? '0' + dayNum : dayNum}`;
+                  const dayEvents = filteredHackathons.filter(h => h.start_date.includes(dateStr));
+
+                  return (
+                    <div key={dayNum} className="min-h-[90px] p-2 rounded-xl bg-slate-950/80 border border-purple-900/30 flex flex-col justify-between">
+                      <span className="text-xs font-bold text-slate-400 font-mono-num">{dayNum}</span>
+                      <div className="space-y-1">
+                        {dayEvents.slice(0, 2).map((ev) => (
+                          <div
+                            key={ev.id}
+                            onClick={() => {
+                              setSelectedHackathon(ev);
+                              setBottomSheetOpen(true);
+                              updateUrlParams(filters, viewMode, ev.id);
+                            }}
+                            className="p-1 rounded text-[10px] font-semibold bg-purple-950/80 text-purple-200 border border-purple-500/30 truncate cursor-pointer hover:bg-purple-900/80 transition-colors"
+                          >
+                            {ev.title}
+                          </div>
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <span className="text-[9px] font-bold text-purple-400">+{dayEvents.length - 2} more</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* 5. FLOATING TIMELINE CONTROLLER */}
+      {/* 5. FLOATING BOTTOM TIMELINE CONTROLLER (Map Mode Only) */}
       {viewMode === 'map' && (
         <div className="fixed bottom-4 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto sm:min-w-[460px] z-30 bg-[#0D1224]/90 backdrop-blur-2xl rounded-2xl sm:rounded-full px-5 py-2.5 border border-purple-500/30 shadow-2xl flex items-center justify-between gap-4">
           <span className="text-xs font-bold text-purple-300 shrink-0 flex items-center gap-1.5">
@@ -788,7 +839,114 @@ function DiscoveryPlatformContent() {
         </div>
       )}
 
-      {/* TOAST */}
+      {/* 7. COMPACT FILTER DRAWER MODAL */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0D1224] border border-purple-500/40 rounded-3xl p-6 space-y-4 max-w-md w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-purple-900/30">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Filter className="w-4 h-4 text-purple-400" /> Filter Hackathons
+              </h3>
+              <button onClick={() => setMobileDrawerOpen(false)} className="p-1 text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase">Status</label>
+              <div className="flex flex-wrap gap-1.5">
+                {(['all', 'open', 'closing_soon', 'closed'] as const).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => handleFilterChange(prev => ({ ...prev, status: st }))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize border ${
+                      filters.status === st
+                        ? 'bg-purple-600 text-white border-purple-400'
+                        : 'bg-slate-950 text-slate-400 border-purple-900/40 hover:text-white'
+                    }`}
+                  >
+                    {st.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase">Categories</label>
+              <div className="flex flex-wrap gap-1.5">
+                {CATEGORY_TAGS.map((tag) => {
+                  const selected = filters.tags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        handleFilterChange(prev => ({
+                          ...prev,
+                          tags: selected ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
+                        }));
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                        selected ? 'bg-purple-600 text-white border-purple-400' : 'bg-slate-950 text-slate-400 border-purple-900/40 hover:text-white'
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-400 uppercase">Min Prize Pool</span>
+                <span className="text-amber-300 font-mono-num">
+                  {filters.prizeMin > 0 ? `₹${filters.prizeMin.toLocaleString()}+` : 'Any'}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={500000}
+                step={10000}
+                value={filters.prizeMin}
+                onChange={(e) => handleFilterChange(prev => ({ ...prev, prizeMin: Number(e.target.value) }))}
+                className="w-full accent-purple-500 bg-slate-900 rounded-lg h-1.5 cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <span className="text-slate-300 font-semibold">Online Events Only</span>
+              <button
+                onClick={() => handleFilterChange(prev => ({ ...prev, onlineOnly: !prev.onlineOnly }))}
+                className={`w-9 h-5 rounded-full transition-colors relative p-0.5 ${
+                  filters.onlineOnly ? 'bg-purple-600' : 'bg-slate-800'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                  filters.onlineOnly ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => handleFilterChange(() => ({ search: '', tags: [], onlineOnly: false, prizeMin: 0, status: 'all' }))}
+                className="px-4 py-3 rounded-xl bg-slate-900 border border-purple-900/40 text-slate-300 hover:text-white font-bold text-xs shrink-0"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => setMobileDrawerOpen(false)}
+                className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg transition-colors"
+              >
+                Apply ({filteredHackathons.length} Results)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. TOAST */}
       {toastMessage && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-900/90 border border-purple-500/40 text-purple-200 text-xs font-bold shadow-2xl backdrop-blur-md animate-fade-in-up">
           {toastMessage}

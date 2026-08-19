@@ -7,6 +7,7 @@ export interface DeveloperCapabilityProfileProps {
   languages: Record<string, number>;      // Canonical ID -> normalized score (0..1)
   frameworks: Record<string, number>;     // Canonical ID -> normalized score (0..1)
   domains: Record<string, number>;        // Canonical ID -> normalized score (0..1)
+  skills: Record<string, number>;         // Canonical ID -> normalized score (0..1)
   dsaIndex: number;                       // Algorithmic competence (0..1)
   problemSolvingIndex: number;            // Math & problem solving competence (0..1)
   implementationIndex: number;            // Practical code delivery competence (0..1)
@@ -31,6 +32,7 @@ export class DeveloperCapabilityProfile {
   public get languages(): Record<string, number> { return { ...this.props.languages }; }
   public get frameworks(): Record<string, number> { return { ...this.props.frameworks }; }
   public get domains(): Record<string, number> { return { ...this.props.domains }; }
+  public get skills(): Record<string, number> { return { ...this.props.skills }; }
   public get dsaIndex(): number { return this.props.dsaIndex; }
   public get problemSolvingIndex(): number { return this.props.problemSolvingIndex; }
   public get implementationIndex(): number { return this.props.implementationIndex; }
@@ -56,6 +58,7 @@ export class DeveloperCapabilityProfile {
     const languages: Record<string, number> = {};
     const frameworks: Record<string, number> = {};
     const domains: Record<string, number> = {};
+    const skills: Record<string, number> = {};
     const sourcesSet = new Set<SkillEvidenceSource>();
     const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -119,10 +122,21 @@ export class DeveloperCapabilityProfile {
             if (canonical) {
               if (canonical.category === 'framework') {
                 frameworks[canonical.id] = (frameworks[canonical.id] || 0) + effectiveWeight;
+                if (canonical.parentDomain) {
+                  domains[canonical.parentDomain] = (domains[canonical.parentDomain] || 0) + (effectiveWeight * 0.7);
+                }
               } else if (canonical.category === 'domain') {
                 domains[canonical.id] = (domains[canonical.id] || 0) + effectiveWeight;
               } else if (canonical.category === 'language') {
                 languages[canonical.id] = (languages[canonical.id] || 0) + (effectiveWeight * 0.5);
+                if (canonical.parentDomain) {
+                  domains[canonical.parentDomain] = (domains[canonical.parentDomain] || 0) + (effectiveWeight * 0.5);
+                }
+              } else if (canonical.category === 'skill' || canonical.category === 'database' || canonical.category === 'cloud_devops') {
+                skills[canonical.id] = (skills[canonical.id] || 0) + effectiveWeight;
+                if (canonical.parentDomain) {
+                  domains[canonical.parentDomain] = (domains[canonical.parentDomain] || 0) + (effectiveWeight * 0.5);
+                }
               }
             }
           }
@@ -182,6 +196,12 @@ export class DeveloperCapabilityProfile {
       normalizedDomains[k] = Math.round((v / maxDom) * 1000) / 1000;
     }
 
+    const maxSkills = Math.max(...Object.values(skills), 1);
+    const normalizedSkills: Record<string, number> = {};
+    for (const [k, v] of Object.entries(skills)) {
+      normalizedSkills[k] = Math.round((v / maxSkills) * 1000) / 1000;
+    }
+
     // Algorithmic Indices
     let dsaIndex = 0;
     if (leetcodeTotalSolved >= 500) dsaIndex = 0.95;
@@ -234,6 +254,7 @@ export class DeveloperCapabilityProfile {
       languages: normalizedLanguages,
       frameworks: normalizedFrameworks,
       domains: normalizedDomains,
+      skills: normalizedSkills,
       dsaIndex,
       problemSolvingIndex,
       implementationIndex,

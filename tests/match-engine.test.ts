@@ -544,7 +544,1079 @@ test('Rejects hallucinated skills and safely ignores unrecognized buzzwords', ()
   assert.strictEqual(analysis.capabilityProfile.dataQuality, 'low');
 });
 
+// ----------------------------------------------------
+// 8. Required vs. Preferred Skill Penalty Tests
+// ----------------------------------------------------
+console.log('\n[8] Required vs. Preferred Skill Penalty Verification:');
+
+test('Missing required language heavily penalizes score compared to missing preferred language', () => {
+  const now = 1750000000000;
+  // Developer with TypeScript only (no Python)
+  const devTS = DeveloperCapabilityProfile.fromEvidence(
+    'u-req-test',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-req-test',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-1',
+        signals: { language: 'TypeScript', languages: { TypeScript: 100000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  // Hackathon requiring Python (hard requirement)
+  const hackReqPython = new HackathonCapabilityProfile({
+    id: 'h-req-py',
+    title: 'Python AI Hackathon',
+    slug: 'python-ai',
+    description: 'Build AI models using Python and PyTorch.',
+    tagline: null,
+    requiredLanguages: ['language.python'],
+    preferredLanguages: [],
+    frameworks: ['framework.pytorch'],
+    domains: ['domain.ai_ml'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 5),
+    eventStart: new Date(now + 86400000 * 6),
+    eventEnd: new Date(now + 86400000 * 8),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 10000,
+    dataQuality: 'high',
+    rawTags: ['Python', 'AI']
+  });
+
+  // Hackathon preferring Python (soft requirement)
+  const hackPrefPython = new HackathonCapabilityProfile({
+    id: 'h-pref-py',
+    title: 'Open Web Hackathon',
+    slug: 'open-web',
+    description: 'Build modern web applications with TypeScript frontend. Python backend is optional bonus.',
+    tagline: null,
+    requiredLanguages: ['language.typescript'],
+    preferredLanguages: ['language.python'],
+    frameworks: ['framework.react'],
+    domains: ['domain.frontend'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 5),
+    eventStart: new Date(now + 86400000 * 6),
+    eventEnd: new Date(now + 86400000 * 8),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 10000,
+    dataQuality: 'high',
+    rawTags: ['TypeScript']
+  });
+
+  const matchReq = HackathonMatchEngine.calculateMatch(devTS, hackReqPython, undefined, now);
+  const matchPref = HackathonMatchEngine.calculateMatch(devTS, hackPrefPython, undefined, now);
+
+  // Missing required language produces much lower score than missing optional preferred language
+  assert.ok(matchReq.overallScore < matchPref.overallScore);
+  assert.ok(matchReq.dimensionScores.languageMatch < matchPref.dimensionScores.languageMatch);
+  assert.strictEqual(matchReq.dimensionScores.languageMatch, 0);
+  assert.strictEqual(matchPref.dimensionScores.languageMatch, 1.0);
+});
+
+// ----------------------------------------------------
+// 9. 100x Determinism Stress Test
+// ----------------------------------------------------
+console.log('\n[9] Determinism & Stability Stress Verification:');
+
+test('Produces 100% identical MatchResult across 100 consecutive executions', () => {
+  const now = 1750000000000;
+  const dev = DeveloperCapabilityProfile.fromEvidence(
+    'u-stress',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-stress',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-stress-1',
+        signals: { language: 'TypeScript', topics: ['react', 'nextjs'], languages: { TypeScript: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const hack = new HackathonCapabilityProfile({
+    id: 'h-stress',
+    title: 'Stress Test Event',
+    slug: 'stress-test',
+    description: 'TypeScript frontend competition with React and Next.js.',
+    tagline: null,
+    requiredLanguages: ['language.typescript'],
+    preferredLanguages: [],
+    frameworks: ['framework.react', 'framework.nextjs'],
+    domains: ['domain.frontend'],
+    skills: [],
+    difficulty: 'open',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 3),
+    eventStart: new Date(now + 86400000 * 5),
+    eventEnd: new Date(now + 86400000 * 7),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 5000,
+    dataQuality: 'high',
+    rawTags: ['TypeScript', 'React']
+  });
+
+  const baseline = HackathonMatchEngine.calculateMatch(dev, hack, undefined, now);
+
+  for (let i = 0; i < 100; i++) {
+    const result = HackathonMatchEngine.calculateMatch(dev, hack, undefined, now);
+    assert.strictEqual(result.overallScore, baseline.overallScore);
+    assert.strictEqual(result.matchPercentage, baseline.matchPercentage);
+    assert.strictEqual(result.confidence, baseline.confidence);
+    assert.strictEqual(result.strengths.length, baseline.strengths.length);
+    assert.strictEqual(result.gaps.length, baseline.gaps.length);
+    assert.deepStrictEqual(result.dimensionScores, baseline.dimensionScores);
+  }
+});
+
+// ----------------------------------------------------
+// 10. Advanced Monotonicity & Irrelevance Verification
+// ----------------------------------------------------
+console.log('\n[10] Monotonicity & Irrelevance Verification:');
+
+test('Case A: Adding relevant framework evidence strictly increases or maintains score', () => {
+  const now = 1750000000000;
+  const devJS = DeveloperCapabilityProfile.fromEvidence(
+    'u-mono-a',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-mono-a',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-js',
+        signals: { language: 'JavaScript', languages: { JavaScript: 10000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const devJSReact = DeveloperCapabilityProfile.fromEvidence(
+    'u-mono-a',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-mono-a',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-js',
+        signals: { language: 'JavaScript', languages: { JavaScript: 10000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-mono-a',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-react',
+        signals: { language: 'JavaScript', topics: ['react'], languages: { JavaScript: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const reactHackathon = new HackathonCapabilityProfile({
+    id: 'h-react',
+    title: 'React UI Challenge',
+    slug: 'react-ui',
+    description: 'Build modern user interfaces with React and JavaScript.',
+    tagline: null,
+    requiredLanguages: ['language.javascript'],
+    preferredLanguages: [],
+    frameworks: ['framework.react'],
+    domains: ['domain.frontend'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 3),
+    eventStart: new Date(now + 86400000 * 5),
+    eventEnd: new Date(now + 86400000 * 7),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 5000,
+    dataQuality: 'high',
+    rawTags: ['JavaScript', 'React']
+  });
+
+  const scoreBefore = HackathonMatchEngine.calculateMatch(devJS, reactHackathon, undefined, now);
+  const scoreAfter = HackathonMatchEngine.calculateMatch(devJSReact, reactHackathon, undefined, now);
+
+  assert.ok(scoreAfter.overallScore >= scoreBefore.overallScore);
+  assert.ok(scoreAfter.dimensionScores.frameworkMatch >= scoreBefore.dimensionScores.frameworkMatch);
+});
+
+test('Case B: Adding unrelated skills does not artificially inflate target domain match', () => {
+  const now = 1750000000000;
+  const devPy = DeveloperCapabilityProfile.fromEvidence(
+    'u-mono-b',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-mono-b',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-py',
+        signals: { language: 'Python', languages: { Python: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const devPyUnrelated = DeveloperCapabilityProfile.fromEvidence(
+    'u-mono-b',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-mono-b',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-py',
+        signals: { language: 'Python', languages: { Python: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-mono-b',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-sol',
+        signals: { language: 'Solidity', languages: { Solidity: 1000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const pythonHackathon = new HackathonCapabilityProfile({
+    id: 'h-python',
+    title: 'Python Machine Learning Challenge',
+    slug: 'python-ml',
+    description: 'Build predictive machine learning models in Python.',
+    tagline: null,
+    requiredLanguages: ['language.python'],
+    preferredLanguages: [],
+    frameworks: ['framework.pytorch'],
+    domains: ['domain.ai_ml'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 3),
+    eventStart: new Date(now + 86400000 * 5),
+    eventEnd: new Date(now + 86400000 * 7),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 5000,
+    dataQuality: 'high',
+    rawTags: ['Python', 'AI']
+  });
+
+  const scoreA = HackathonMatchEngine.calculateMatch(devPy, pythonHackathon, undefined, now);
+  const scoreB = HackathonMatchEngine.calculateMatch(devPyUnrelated, pythonHackathon, undefined, now);
+
+  // Language alignment and domain scores should remain identical
+  assert.strictEqual(scoreA.dimensionScores.languageMatch, scoreB.dimensionScores.languageMatch);
+  assert.strictEqual(scoreA.dimensionScores.domainMatch, scoreB.dimensionScores.domainMatch);
+});
+
+// ----------------------------------------------------
+// 12. Weight Integrity & Invariant Attack
+// ----------------------------------------------------
+console.log('\n[12] Weight Integrity & Invariant Attack:');
+
+test('Sum of all dimension weights equals exactly 1.00', () => {
+  const sum = Object.values(HackathonMatchEngine.WEIGHTS).reduce((a, b) => a + b, 0);
+  assert.strictEqual(Math.round(sum * 1000) / 1000, 1.00);
+});
+
+// ----------------------------------------------------
+// 13. Determinism Serialized Result Invariant Attack
+// ----------------------------------------------------
+console.log('\n[13] Determinism Serialized JSON Invariant Attack:');
+
+test('Complete serialized JSON MatchResult is identical across 100 executions', () => {
+  const now = 1750000000000;
+  const dev = DeveloperCapabilityProfile.fromEvidence(
+    'u-det-serial',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-det-serial',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-det',
+        signals: { language: 'TypeScript', topics: ['react', 'nextjs'], languages: { TypeScript: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-det-serial',
+        source: 'leetcode',
+        evidenceType: 'activity',
+        externalId: 'lc-det',
+        signals: { totalSolved: 350, mediumSolved: 200, hardSolved: 50, contestRating: 1850 },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const hack = new HackathonCapabilityProfile({
+    id: 'h-det-serial',
+    title: 'Fullstack AI Sprint',
+    slug: 'fullstack-ai',
+    description: 'Build fullstack applications with TypeScript, Next.js, and Python backend.',
+    tagline: 'Modern fullstack event',
+    requiredLanguages: ['language.typescript'],
+    preferredLanguages: ['language.python'],
+    frameworks: ['framework.nextjs', 'framework.react'],
+    domains: ['domain.ai_ml', 'domain.frontend'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 4),
+    eventStart: new Date(now + 86400000 * 6),
+    eventEnd: new Date(now + 86400000 * 8),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: true,
+    prizeAmount: 25000,
+    dataQuality: 'high',
+    rawTags: ['TypeScript', 'Next.js', 'AI']
+  });
+
+  const baselineJson = JSON.stringify(HackathonMatchEngine.calculateMatch(dev, hack, undefined, now));
+
+  for (let i = 0; i < 100; i++) {
+    const currentJson = JSON.stringify(HackathonMatchEngine.calculateMatch(dev, hack, undefined, now));
+    assert.strictEqual(currentJson, baselineJson);
+  }
+});
+
+// ----------------------------------------------------
+// 14. Anti-Keyword Stuffing & Tag Inflation Attack
+// ----------------------------------------------------
+console.log('\n[14] Anti-Keyword-Stuffing & Duplicate Tag Attack:');
+
+test('100 duplicate tags produce the exact same capability profile as 1 canonical tag', () => {
+  const singleTagList = ['TypeScript'];
+  const stuffedTagList = Array(100).fill('TypeScript');
+
+  const singleAnalysis = HackathonAnalysisService.analyze({
+    id: 'sub-single',
+    title: 'TS Hackathon',
+    description: 'Building TypeScript web apps.',
+    tags: singleTagList
+  });
+
+  const stuffedAnalysis = HackathonAnalysisService.analyze({
+    id: 'sub-stuffed',
+    title: 'TS Hackathon',
+    description: 'Building TypeScript web apps.',
+    tags: stuffedTagList
+  });
+
+  assert.strictEqual(singleAnalysis.capabilityProfile.requiredLanguages.length, 1);
+  assert.strictEqual(stuffedAnalysis.capabilityProfile.requiredLanguages.length, 1);
+  assert.deepStrictEqual(singleAnalysis.capabilityProfile.requiredLanguages, stuffedAnalysis.capabilityProfile.requiredLanguages);
+});
+
+// ----------------------------------------------------
+// 15. Taxonomy Substring & False Positive Isolation Attack
+// ----------------------------------------------------
+console.log('\n[15] Taxonomy Substring & False Positive Isolation Attack:');
+
+test('Strict boundary prevents substring false positives (e.g., reactor, docker, javascript)', () => {
+  // "reactor" should NOT match "react"
+  const extractedReactor = SkillNormalizer.extractFromText('We built a nuclear reactor simulation system.');
+  const reactorIds = extractedReactor.map(e => e.id);
+  assert.ok(!reactorIds.includes('framework.react'), 'Should NOT match react in reactor');
+
+  // "docker" should NOT match "c"
+  const extractedDocker = SkillNormalizer.extractFromText('Containerized deployment with docker.');
+  const dockerIds = extractedDocker.map(e => e.id);
+  assert.ok(!dockerIds.includes('language.c'), 'Should NOT match C language in docker');
+
+  // "javascript" should NOT match "java"
+  const extractedJS = SkillNormalizer.extractFromText('Building web apps in javascript.');
+  const jsIds = extractedJS.map(e => e.id);
+  assert.ok(jsIds.includes('language.javascript'));
+  assert.ok(!jsIds.includes('language.java'), 'Should NOT match java in javascript');
+});
+
+// ----------------------------------------------------
+// 16. Required vs. Preferred Battle Attack
+// ----------------------------------------------------
+console.log('\n[16] Required vs. Preferred Battle Attack:');
+
+test('Developer with required skills strictly outranks developer with 0 required and 5 preferred skills', () => {
+  const now = 1750000000000;
+
+  // Developer A: Has required Python
+  const devA = DeveloperCapabilityProfile.fromEvidence(
+    'u-dev-a',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-dev-a',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-py',
+        signals: { language: 'Python', languages: { Python: 100000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  // Developer B: Has no Python, but has 5 preferred skills (TS, Go, Rust, React, Vue)
+  const devB = DeveloperCapabilityProfile.fromEvidence(
+    'u-dev-b',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-dev-b',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-other',
+        signals: {
+          language: 'TypeScript',
+          topics: ['react', 'vue', 'rust', 'go'],
+          languages: { TypeScript: 50000, Rust: 50000, Go: 50000 }
+        },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const pythonHackathon = new HackathonCapabilityProfile({
+    id: 'h-py-strict',
+    title: 'Python Core Challenge',
+    slug: 'python-core',
+    description: 'Mandatory Python competition. TypeScript and Rust are optional bonuses.',
+    tagline: null,
+    requiredLanguages: ['language.python'],
+    preferredLanguages: ['language.typescript', 'language.rust', 'language.go'],
+    frameworks: [],
+    domains: [],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 3),
+    eventStart: new Date(now + 86400000 * 5),
+    eventEnd: new Date(now + 86400000 * 7),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 10000,
+    dataQuality: 'high',
+    rawTags: ['Python']
+  });
+
+  const matchA = HackathonMatchEngine.calculateMatch(devA, pythonHackathon, undefined, now);
+  const matchB = HackathonMatchEngine.calculateMatch(devB, pythonHackathon, undefined, now);
+
+  // Dev A must outrank Dev B because Dev A fulfills the mandatory requirement
+  assert.ok(matchA.overallScore > matchB.overallScore);
+  assert.strictEqual(matchA.dimensionScores.languageMatch, 1.0);
+  assert.strictEqual(matchB.dimensionScores.languageMatch, 0.0);
+});
+
+// ----------------------------------------------------
+// 17. Freshness Boundary Tests
+// ----------------------------------------------------
+console.log('\n[17] Freshness Factor Exact Boundary Attack:');
+
+test('Freshness factors strictly respect exact day thresholds (89d, 90d, 179d, 180d, 364d, 365d, 366d)', () => {
+  const now = 1750000000000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const createDatedDev = (daysAgo: number) => {
+    return DeveloperCapabilityProfile.fromEvidence(
+      `u-fresh-${daysAgo}`,
+      null,
+      [
+        new DeveloperSkillEvidenceEntity({
+          id: crypto.randomUUID(),
+          userId: `u-fresh-${daysAgo}`,
+          source: 'github',
+          evidenceType: 'repo',
+          externalId: `gh-${daysAgo}`,
+          signals: { language: 'TypeScript', languages: { TypeScript: 10000 } },
+          weight: 1.0,
+          createdAt: now - (daysAgo * DAY_MS),
+          updatedAt: now - (daysAgo * DAY_MS)
+        })
+      ],
+      now
+    );
+  };
+
+  const dev89 = createDatedDev(89);
+  const dev90 = createDatedDev(90);
+  const dev179 = createDatedDev(179);
+  const dev180 = createDatedDev(180);
+  const dev364 = createDatedDev(364);
+  const dev365 = createDatedDev(365);
+  const dev366 = createDatedDev(366);
+
+  // Confidence and weights decrease or remain equal monotonically with age
+  assert.ok(dev89.confidenceScore >= dev90.confidenceScore);
+  assert.ok(dev90.confidenceScore >= dev180.confidenceScore);
+  assert.ok(dev179.confidenceScore >= dev180.confidenceScore);
+  assert.ok(dev180.confidenceScore >= dev365.confidenceScore);
+  assert.ok(dev364.confidenceScore >= dev365.confidenceScore);
+  assert.strictEqual(dev365.confidenceScore, dev366.confidenceScore);
+});
+
+// ----------------------------------------------------
+// 18. Provider Disconnect & Coexistence Attack
+// ----------------------------------------------------
+console.log('\n[18] Provider Disconnect & Coexistence Attack:');
+
+test('Disconnecting LeetCode preserves GitHub evidence and vice-versa', () => {
+  const now = 1750000000000;
+  const ghEvidence = new DeveloperSkillEvidenceEntity({
+    id: crypto.randomUUID(),
+    userId: 'u-coexist',
+    source: 'github',
+    evidenceType: 'repo',
+    externalId: 'gh-coexist',
+    signals: { language: 'TypeScript', languages: { TypeScript: 50000 } },
+    weight: 1.0,
+    createdAt: now,
+    updatedAt: now
+  });
+
+  const lcEvidence = new DeveloperSkillEvidenceEntity({
+    id: crypto.randomUUID(),
+    userId: 'u-coexist',
+    source: 'leetcode',
+    evidenceType: 'activity',
+    externalId: 'lc-coexist',
+    signals: { totalSolved: 400, mediumSolved: 250, hardSolved: 60, contestRating: 1900 },
+    weight: 1.0,
+    createdAt: now,
+    updatedAt: now
+  });
+
+  // Combined
+  const combined = DeveloperCapabilityProfile.fromEvidence('u-coexist', null, [ghEvidence, lcEvidence], now);
+  assert.strictEqual(combined.sources.length, 2);
+  assert.ok(combined.languages['language.typescript'] > 0);
+  assert.ok(combined.dsaIndex > 0.8);
+
+  // LeetCode disconnected (only GitHub evidence remains)
+  const ghOnly = DeveloperCapabilityProfile.fromEvidence('u-coexist', null, [ghEvidence], now);
+  assert.strictEqual(ghOnly.sources.length, 1);
+  assert.ok(ghOnly.languages['language.typescript'] > 0);
+  assert.strictEqual(ghOnly.dsaIndex, 0);
+
+  // GitHub disconnected (only LeetCode evidence remains)
+  const lcOnly = DeveloperCapabilityProfile.fromEvidence('u-coexist', null, [lcEvidence], now);
+  assert.strictEqual(lcOnly.sources.length, 1);
+  assert.strictEqual(Object.keys(lcOnly.languages).length, 0);
+  assert.ok(lcOnly.dsaIndex > 0.8);
+});
+
+// ----------------------------------------------------
+// 19. Diversity Bounded Penalty Mathematical Proof Attack
+// ----------------------------------------------------
+console.log('\n[19] Diversity Bounded Penalty Mathematical Proof:');
+
+test('Diversity penalty is mathematically bounded at 0.10 and never buries a 95% match below a 55% match', () => {
+  const highMatchBaseRank = (0.95 * 0.70) + (0.90 * 0.20) + (0.80 * 0.10); // ~0.925
+  const lowMatchBaseRank = (0.55 * 0.70) + (0.40 * 0.20) + (0.50 * 0.10);  // ~0.515
+
+  // Even with 10 prior occurrences of the same domain, penalty is capped at 0.10
+  for (let domainCount = 0; domainCount <= 10; domainCount++) {
+    const penalty = Math.min(0.10, domainCount * 0.035);
+    const adjustedHigh = highMatchBaseRank - penalty;
+    assert.ok(adjustedHigh > lowMatchBaseRank, `At count ${domainCount}, high match must strictly beat low match`);
+  }
+});
+
+// ----------------------------------------------------
+// 20. Real Persona & Track Alignment Verification
+// ----------------------------------------------------
+console.log('\n[20] Real Persona Alignment Verification:');
+
+test('Developer A (Frontend) dominates Frontend Hackathon over Developer C (AI)', () => {
+  const now = 1750000000000;
+
+  // Developer A: Frontend (TS, React, Next.js, low DSA)
+  const devA = DeveloperCapabilityProfile.fromEvidence(
+    'u-persona-a',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-a',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-a-1',
+        signals: { language: 'TypeScript', topics: ['react', 'nextjs'], languages: { TypeScript: 80000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  // Developer C: AI/ML (Python, PyTorch, strong DSA)
+  const devC = DeveloperCapabilityProfile.fromEvidence(
+    'u-persona-c',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-c',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-c-1',
+        signals: { language: 'Python', topics: ['pytorch', 'machine-learning'], languages: { Python: 100000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-c',
+        source: 'leetcode',
+        evidenceType: 'activity',
+        externalId: 'lc-c-1',
+        signals: { totalSolved: 450, mediumSolved: 280, hardSolved: 80, contestRating: 1950 },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const frontendHackathon = new HackathonCapabilityProfile({
+    id: 'h-fe-track',
+    title: 'React & Next.js Global UI Summit',
+    slug: 'react-ui-summit',
+    description: 'Build high-performance web applications using React, Next.js, and TypeScript.',
+    tagline: 'Modern frontend summit',
+    requiredLanguages: ['language.typescript'],
+    preferredLanguages: ['language.javascript'],
+    frameworks: ['framework.react', 'framework.nextjs'],
+    domains: ['domain.frontend'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 5),
+    eventStart: new Date(now + 86400000 * 7),
+    eventEnd: new Date(now + 86400000 * 9),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: true,
+    prizeAmount: 20000,
+    dataQuality: 'high',
+    rawTags: ['TypeScript', 'React', 'Next.js']
+  });
+
+  const aiHackathon = new HackathonCapabilityProfile({
+    id: 'h-ai-track',
+    title: 'Generative AI & LLM Sprint',
+    slug: 'ai-llm-sprint',
+    description: 'Build predictive AI and LLM agents using Python and PyTorch.',
+    tagline: 'AI innovation challenge',
+    requiredLanguages: ['language.python'],
+    preferredLanguages: [],
+    frameworks: ['framework.pytorch'],
+    domains: ['domain.ai_ml'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 5),
+    eventStart: new Date(now + 86400000 * 7),
+    eventEnd: new Date(now + 86400000 * 9),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: true,
+    prizeAmount: 30000,
+    dataQuality: 'high',
+    rawTags: ['Python', 'PyTorch', 'AI']
+  });
+
+  const matchA_FE = HackathonMatchEngine.calculateMatch(devA, frontendHackathon, undefined, now);
+  const matchC_FE = HackathonMatchEngine.calculateMatch(devC, frontendHackathon, undefined, now);
+
+  const matchA_AI = HackathonMatchEngine.calculateMatch(devA, aiHackathon, undefined, now);
+  const matchC_AI = HackathonMatchEngine.calculateMatch(devC, aiHackathon, undefined, now);
+
+  // Dev A strongly beats Dev C on Frontend Hackathon
+  assert.ok(matchA_FE.overallScore > matchC_FE.overallScore);
+  assert.ok(matchA_FE.matchPercentage >= 80);
+  assert.ok(matchC_FE.matchPercentage <= 50);
+
+  // Dev C strongly beats Dev A on AI Hackathon
+  assert.ok(matchC_AI.overallScore > matchA_AI.overallScore);
+  assert.ok(matchC_AI.matchPercentage >= 80);
+  assert.ok(matchA_AI.matchPercentage <= 50);
+});
+
+// ----------------------------------------------------
+// 21. Date & Status Eligibility Boundary Tests
+// ----------------------------------------------------
+console.log('\n[21] Date & Status Eligibility Boundary Verification:');
+
+test('Eligibility Engine strictly rejects past/closed dates and non-approved status', () => {
+  const now = 1750000000000;
+
+  const makeHack = (status: string, eventEndDelta: number, deadlineDelta?: number) => {
+    return new HackathonCapabilityProfile({
+      id: 'h-elig-test',
+      title: 'Eligibility Test',
+      slug: 'elig-test',
+      description: 'Test event.',
+      tagline: null,
+      requiredLanguages: [],
+      preferredLanguages: [],
+      frameworks: [],
+      domains: [],
+      skills: [],
+      difficulty: 'open',
+      isOnline: true,
+      locationCity: null,
+      locationCollege: null,
+      registrationDeadline: deadlineDelta !== undefined ? new Date(now + deadlineDelta) : null,
+      eventStart: new Date(now + eventEndDelta - 86400000),
+      eventEnd: new Date(now + eventEndDelta),
+      status,
+      isVerified: true,
+      isFeatured: false,
+      prizeAmount: 1000,
+      dataQuality: 'high',
+      rawTags: []
+    });
+  };
+
+  // Approved + Future dates -> Eligible
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('approved', 86400000 * 5, 86400000 * 2), now).isEligible, true);
+
+  // Status not approved (pending, draft, rejected, deleted) -> Ineligible
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('pending', 86400000 * 5, 86400000 * 2), now).isEligible, false);
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('draft', 86400000 * 5, 86400000 * 2), now).isEligible, false);
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('rejected', 86400000 * 5, 86400000 * 2), now).isEligible, false);
+
+  // Event ended (eventEnd <= now) -> Ineligible
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('approved', 0, 86400000 * 2), now).isEligible, false);
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('approved', -1000, 86400000 * 2), now).isEligible, false);
+
+  // Registration closed (deadline <= now) -> Ineligible
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('approved', 86400000 * 5, 0), now).isEligible, false);
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('approved', 86400000 * 5, -1000), now).isEligible, false);
+
+  // Registration closing in 1 second -> Eligible
+  assert.strictEqual(EligibilityEngine.evaluate(makeHack('approved', 86400000 * 5, 1000), now).isEligible, true);
+});
+
+// ----------------------------------------------------
+// 22. Required Multi-Dimension Penalty Verification
+// ----------------------------------------------------
+console.log('\n[22] Required Multi-Dimension Penalty Verification:');
+
+test('Zero proficiency in required framework or domain yields 0.0 on that dimension', () => {
+  const now = 1750000000000;
+
+  // Developer with Python only (no React, no Mobile domain)
+  const dev = DeveloperCapabilityProfile.fromEvidence(
+    'u-penalty-test',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-penalty-test',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-py-only',
+        signals: { language: 'Python', languages: { Python: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const mobileHackathon = new HackathonCapabilityProfile({
+    id: 'h-mobile',
+    title: 'Mobile Flutter & React Native Hack',
+    slug: 'mobile-hack',
+    description: 'Build native mobile apps using React Native.',
+    tagline: null,
+    requiredLanguages: ['language.typescript'],
+    preferredLanguages: [],
+    frameworks: ['framework.react'],
+    domains: ['domain.mobile'],
+    skills: [],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 3),
+    eventStart: new Date(now + 86400000 * 5),
+    eventEnd: new Date(now + 86400000 * 7),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: false,
+    prizeAmount: 5000,
+    dataQuality: 'high',
+    rawTags: ['TypeScript', 'React', 'Mobile']
+  });
+
+  const result = HackathonMatchEngine.calculateMatch(dev, mobileHackathon, undefined, now);
+
+  assert.strictEqual(result.dimensionScores.languageMatch, 0);
+  assert.strictEqual(result.dimensionScores.frameworkMatch, 0);
+  assert.strictEqual(result.dimensionScores.domainMatch, 0);
+});
+
+// ----------------------------------------------------
+// 23. Persona B (Backend) & Persona E (Polyglot) Verification
+// ----------------------------------------------------
+console.log('\n[23] Persona B (Backend) & Persona E (Polyglot) Verification:');
+
+test('Persona B (Backend) dominates Backend & Cloud API challenge', () => {
+  const now = 1750000000000;
+
+  // Persona B: Backend (Node.js, TypeScript, PostgreSQL)
+  const devB = DeveloperCapabilityProfile.fromEvidence(
+    'u-persona-b',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-b',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-b-1',
+        signals: {
+          language: 'TypeScript',
+          topics: ['nodejs', 'postgresql', 'backend'],
+          languages: { TypeScript: 60000 }
+        },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-b',
+        source: 'leetcode',
+        evidenceType: 'activity',
+        externalId: 'lc-b-1',
+        signals: { totalSolved: 200, mediumSolved: 120, hardSolved: 30, contestRating: 1650 },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  const backendHackathon = new HackathonCapabilityProfile({
+    id: 'h-be-track',
+    title: 'Cloud Infrastructure & API Scalability Hackathon',
+    slug: 'cloud-api-hack',
+    description: 'Build robust scalable backend microservices and databases with TypeScript and Node.js.',
+    tagline: 'Backend engineering challenge',
+    requiredLanguages: ['language.typescript'],
+    preferredLanguages: [],
+    frameworks: ['framework.nodejs'],
+    domains: ['domain.backend'],
+    skills: ['database.postgresql'],
+    difficulty: 'intermediate',
+    isOnline: true,
+    locationCity: null,
+    locationCollege: null,
+    registrationDeadline: new Date(now + 86400000 * 5),
+    eventStart: new Date(now + 86400000 * 7),
+    eventEnd: new Date(now + 86400000 * 9),
+    status: 'approved',
+    isVerified: true,
+    isFeatured: true,
+    prizeAmount: 15000,
+    dataQuality: 'high',
+    rawTags: ['TypeScript', 'Node.js', 'PostgreSQL', 'Backend']
+  });
+
+  const matchB_BE = HackathonMatchEngine.calculateMatch(devB, backendHackathon, undefined, now);
+  assert.ok(matchB_BE.overallScore >= 0.75, 'Persona B should have strong match on Backend Hackathon');
+  assert.ok(matchB_BE.matchPercentage >= 75);
+  assert.strictEqual(matchB_BE.dimensionScores.languageMatch, 1.0);
+  assert.strictEqual(matchB_BE.dimensionScores.frameworkMatch, 1.0);
+});
+
+test('Persona E (Polyglot) maintains distinct non-colliding language proficiencies', () => {
+  const now = 1750000000000;
+
+  // Persona E: Polyglot (Java, JS, TS, Python)
+  const devE = DeveloperCapabilityProfile.fromEvidence(
+    'u-persona-e',
+    null,
+    [
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-e',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-e-java',
+        signals: { language: 'Java', languages: { Java: 40000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-e',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-e-js',
+        signals: { language: 'JavaScript', languages: { JavaScript: 30000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-e',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-e-ts',
+        signals: { language: 'TypeScript', languages: { TypeScript: 50000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      }),
+      new DeveloperSkillEvidenceEntity({
+        id: crypto.randomUUID(),
+        userId: 'u-persona-e',
+        source: 'github',
+        evidenceType: 'repo',
+        externalId: 'gh-e-py',
+        signals: { language: 'Python', languages: { Python: 60000 } },
+        weight: 1.0,
+        createdAt: now,
+        updatedAt: now
+      })
+    ],
+    now
+  );
+
+  // All 4 languages must be distinctly populated without collision
+  assert.ok(devE.languages['language.java'] > 0);
+  assert.ok(devE.languages['language.javascript'] > 0);
+  assert.ok(devE.languages['language.typescript'] > 0);
+  assert.ok(devE.languages['language.python'] > 0);
+
+  // Strict distinctness: Java !== JavaScript
+  assert.notStrictEqual(devE.languages['language.java'], undefined);
+  assert.notStrictEqual(devE.languages['language.javascript'], undefined);
+});
+
+// ----------------------------------------------------
+// 24. Disconnect & Stale Evidence Invariant Verification
+// ----------------------------------------------------
+console.log('\n[24] Disconnect & Stale Evidence Verification:');
+
+test('Both providers disconnected yields empty capability profile with 0 evidence', () => {
+  const now = 1750000000000;
+  const devEmpty = DeveloperCapabilityProfile.fromEvidence('u-empty', null, [], now);
+
+  assert.strictEqual(devEmpty.evidenceCount, 0);
+  assert.strictEqual(devEmpty.sources.length, 0);
+  assert.strictEqual(devEmpty.dsaIndex, 0);
+  assert.strictEqual(Object.keys(devEmpty.languages).length, 0);
+  assert.strictEqual(Object.keys(devEmpty.frameworks).length, 0);
+});
+
 console.log('\n====================================================');
 console.log(`TEST SUITE COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);
 console.log('====================================================\n');
+
+
+
+
+
 

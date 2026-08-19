@@ -17,13 +17,13 @@ export class EligibilityEngine {
     const reasons: string[] = [];
     const warnings: string[] = [];
 
-    // 1. Status check
-    const cleanStatus = (hackathon.status || '').toLowerCase();
-    if (cleanStatus === 'rejected' || cleanStatus === 'archived' || cleanStatus === 'draft') {
+    // 1. Status check: Only approved events are eligible
+    const cleanStatus = (hackathon.status || '').toLowerCase().trim();
+    if (cleanStatus !== 'approved') {
       return {
         isEligible: false,
         status: 'ineligible',
-        reasons: [`Event status is "${cleanStatus}"`],
+        reasons: [cleanStatus ? `Event status is "${cleanStatus}" (requires "approved")` : 'Event status is not approved'],
         warnings: [],
         actionability: 0
       };
@@ -31,11 +31,11 @@ export class EligibilityEngine {
 
     // 2. Event conclusion check
     const eventEndMs = hackathon.eventEnd ? hackathon.eventEnd.getTime() : 0;
-    if (eventEndMs > 0 && eventEndMs < now) {
+    if (isNaN(eventEndMs) || (eventEndMs > 0 && eventEndMs <= now)) {
       return {
         isEligible: false,
         status: 'ineligible',
-        reasons: ['Hackathon has already ended'],
+        reasons: ['Hackathon has already ended or has an invalid end date'],
         warnings: [],
         actionability: 0
       };
@@ -43,7 +43,7 @@ export class EligibilityEngine {
 
     // 3. Registration Deadline check
     const deadlineMs = hackathon.registrationDeadline ? hackathon.registrationDeadline.getTime() : 0;
-    if (deadlineMs > 0 && deadlineMs < now) {
+    if (!isNaN(deadlineMs) && deadlineMs > 0 && deadlineMs <= now) {
       return {
         isEligible: false,
         status: 'ineligible',

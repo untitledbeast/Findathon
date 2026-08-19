@@ -218,8 +218,9 @@ export class HackathonRecommendationService {
       for (let i = 0; i < pool.length; i++) {
         const item = pool[i];
         const domainCount = seenDomains.get(item.primaryDomain) || 0;
-        // Lightweight deterministic penalty: 0.08 per prior occurrence of same domain
-        const adjustedScore = item.baseRankScore - (domainCount * 0.08);
+        // Bounded diminishing diversity penalty: max 0.10 adjustment to never bury highly relevant matches
+        const diversityPenalty = Math.min(0.10, domainCount * 0.035);
+        const adjustedScore = item.baseRankScore - diversityPenalty;
 
         if (adjustedScore > bestAdjustedScore) {
           bestAdjustedScore = adjustedScore;

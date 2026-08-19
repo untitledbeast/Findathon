@@ -20,6 +20,7 @@ export interface DimensionScores {
   skillMatch: number;
   languageMatch: number;
   domainMatch: number;
+  frameworkMatch: number;
   technicalLevelMatch: number;
   dsaMatch: number;
   actionabilityMatch: number;
@@ -46,10 +47,11 @@ export class HackathonMatchEngine {
   // Dimension Weights (Sum = 1.0)
   public static readonly WEIGHTS = {
     SKILL: 0.30,
-    LANGUAGE: 0.25,
+    LANGUAGE: 0.20,
     DOMAIN: 0.20,
+    FRAMEWORK: 0.10,
     TECHNICAL_LEVEL: 0.10,
-    DSA: 0.10,
+    DSA: 0.05,
     ACTIONABILITY: 0.05
   };
 
@@ -71,6 +73,8 @@ export class HackathonMatchEngine {
     // 1. Language Alignment (0..1)
     let languageScore = 0.5; // Neutral baseline when hackathon requires no explicit languages
     const reqLanguages = hackathon.requiredLanguages;
+    const prefLanguages = hackathon.preferredLanguages;
+
     if (reqLanguages.length > 0) {
       let sumProficiency = 0;
 
@@ -96,7 +100,47 @@ export class HackathonMatchEngine {
         }
       }
 
-      languageScore = reqLanguages.length > 0 ? (sumProficiency / reqLanguages.length) : 0.5;
+      const fulfillmentRatio = sumProficiency / reqLanguages.length;
+      languageScore = fulfillmentRatio;
+
+      // Bonus for matched preferred languages only applies if mandatory required languages are fulfilled
+      if (fulfillmentRatio > 0 && prefLanguages && prefLanguages.length > 0) {
+        for (const prefLangId of prefLanguages) {
+          const prefProf = developer.languages[prefLangId] || 0;
+          if (prefProf > 0.3) {
+            const meta = CANONICAL_SKILL_TAXONOMY[prefLangId];
+            const display = meta ? meta.displayLabel : prefLangId;
+            const bonus = prefProf * 0.15 * fulfillmentRatio;
+            languageScore = Math.min(1.0, languageScore + bonus);
+            strengths.push({
+              type: 'language',
+              label: display,
+              text: `Preferred stack bonus for ${display}`,
+              weight: bonus
+            });
+          }
+        }
+      }
+    } else if (prefLanguages && prefLanguages.length > 0) {
+      // Only preferred languages specified
+      let sumPref = 0;
+      let matchedCount = 0;
+      for (const prefLangId of prefLanguages) {
+        const prefProf = developer.languages[prefLangId] || 0;
+        if (prefProf > 0.3) {
+          sumPref += prefProf;
+          matchedCount++;
+          const meta = CANONICAL_SKILL_TAXONOMY[prefLangId];
+          const display = meta ? meta.displayLabel : prefLangId;
+          strengths.push({
+            type: 'language',
+            label: display,
+            text: `Proficiency in ${display}`,
+            weight: prefProf
+          });
+        }
+      }
+      languageScore = matchedCount > 0 ? Math.min(1.0, 0.5 + (sumPref / prefLanguages.length) * 0.5) : 0.5;
     } else {
       // If no explicit language specified, check if developer has any active languages
       const devLangCount = Object.keys(developer.languages).length;
@@ -113,8 +157,8 @@ export class HackathonMatchEngine {
       }
     }
 
-    // 2. Skill & Framework Alignment (0..1)
-    let skillScore = 0.5;
+    // 2. Framework Alignment (0..1)
+    let frameworkScore = 0.5;
     const reqFrameworks = hackathon.frameworks;
     if (reqFrameworks.length > 0) {
       let sumFw = 0;
@@ -139,12 +183,36 @@ export class HackathonMatchEngine {
           });
         }
       }
-      skillScore = sumFw / reqFrameworks.length;
+      frameworkScore = sumFw / reqFrameworks.length;
     } else if (Object.keys(developer.frameworks).length > 0) {
-      skillScore = 0.65;
+      frameworkScore = 0.65;
     }
 
-    // 3. Domain & Category Relevance (0..1)
+    // 3. General Skill & Concept Alignment (0..1)
+    let skillScore = 0.5;
+    const reqSkills = hackathon.skills;
+    if (reqSkills.length > 0) {
+      let sumSkills = 0;
+      for (const skId of reqSkills) {
+        const prof = developer.skills[skId] || 0;
+        const meta = CANONICAL_SKILL_TAXONOMY[skId];
+        const display = meta ? meta.displayLabel : skId;
+        if (prof > 0.25) {
+          sumSkills += prof;
+          strengths.push({
+            type: 'general',
+            label: display,
+            text: `Proficiency in ${display}`,
+            weight: prof
+          });
+        }
+      }
+      skillScore = sumSkills / reqSkills.length;
+    } else {
+      skillScore = 0.60;
+    }
+
+    // 4. Domain & Category Relevance (0..1)
     let domainScore = 0.5;
     const hackDomains = hackathon.domains;
     if (hackDomains.length > 0) {
@@ -164,12 +232,12 @@ export class HackathonMatchEngine {
           });
         }
       }
-      domainScore = Math.min(1.0, sumDom > 0 ? (sumDom / hackDomains.length) : 0.3);
+      domainScore = sumDom / hackDomains.length;
     } else {
       domainScore = 0.6;
     }
 
-    // 4. Technical Level Compatibility (0..1)
+    // 5. Technical Level Compatibility (0..1)
     let technicalLevelScore = 0.7;
     const hackDiff = hackathon.difficulty;
     const devLevel = developer.technicalLevel;
@@ -197,7 +265,7 @@ export class HackathonMatchEngine {
       }
     }
 
-    // 5. DSA & Problem Solving Alignment (0..1)
+    // 6. DSA & Problem Solving Alignment (0..1)
     let dsaScore = 0.5;
     if (developer.dsaIndex > 0.4) {
       dsaScore = developer.dsaIndex;
@@ -209,12 +277,13 @@ export class HackathonMatchEngine {
       });
     }
 
-    // 6. Actionability (0..1)
+    // 7. Actionability (0..1)
     const actionabilityScore = eligibility.actionability;
 
     // Weighted Overall Score
     let rawScore =
       (languageScore * this.WEIGHTS.LANGUAGE) +
+      (frameworkScore * this.WEIGHTS.FRAMEWORK) +
       (skillScore * this.WEIGHTS.SKILL) +
       (domainScore * this.WEIGHTS.DOMAIN) +
       (technicalLevelScore * this.WEIGHTS.TECHNICAL_LEVEL) +
@@ -227,7 +296,7 @@ export class HackathonMatchEngine {
     }
 
     // Mathematical clamping to [0, 1]
-    const overallScore = Math.max(0.05, Math.min(0.99, Math.round(rawScore * 100) / 100));
+    const overallScore = Math.max(0.0, Math.min(1.0, Math.round(rawScore * 100) / 100));
     const matchPercentage = Math.round(overallScore * 100);
 
     // Dynamic confidence
@@ -248,6 +317,7 @@ export class HackathonMatchEngine {
       confidenceScore,
       dimensionScores: {
         skillMatch: Math.round(skillScore * 100) / 100,
+        frameworkMatch: Math.round(frameworkScore * 100) / 100,
         languageMatch: Math.round(languageScore * 100) / 100,
         domainMatch: Math.round(domainScore * 100) / 100,
         technicalLevelMatch: Math.round(technicalLevelScore * 100) / 100,
