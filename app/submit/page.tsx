@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
 import { useAuth } from '@/lib/auth-context';
 import { transportClient } from '@/lib/transport/http-client';
+import { HackathonDTO } from '@/types';
 import {
   Check,
   ArrowRight,
@@ -36,6 +38,7 @@ export default function SubmissionWizardPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedHackathon, setSubmittedHackathon] = useState<HackathonDTO | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -133,7 +136,7 @@ export default function SubmissionWizardPage() {
 
       const finalTags = selectedTags.length > 0 ? selectedTags : ['AI/ML'];
 
-      await transportClient('/api/v1/hackathons', {
+      const createdHackathon = await transportClient<HackathonDTO>('/api/v1/hackathons', {
         method: 'POST',
         body: JSON.stringify({
           title: title.trim(),
@@ -158,6 +161,7 @@ export default function SubmissionWizardPage() {
         })
       });
 
+      setSubmittedHackathon(createdHackathon);
       setIsSubmitted(true);
     } catch (err: unknown) {
       console.error('Hackathon submission error:', err);
@@ -173,27 +177,35 @@ export default function SubmissionWizardPage() {
     return (
       <div className="min-h-screen bg-[#060816] text-[#F6F8FC] flex flex-col selection:bg-purple-600 selection:text-white">
         <Navbar />
-        <main className="flex-1 flex items-center justify-center p-6 text-center">
+        <main className="flex-1 flex items-center justify-center p-6 text-center pt-24">
           <div className="glass-card p-12 rounded-3xl max-w-lg w-full border border-purple-500/40 space-y-6 shadow-2xl relative overflow-hidden">
             <div className="text-6xl animate-bounce">🎉</div>
             <div className="space-y-2">
               <h2 className="text-3xl font-black glow-text">Hackathon Submitted!</h2>
-              <p className="text-xs text-slate-300">Our verification team will review your listing within 24-48 hours.</p>
+              <p className="text-xs text-slate-300">Your hackathon has been received and registered on Findathon.</p>
             </div>
 
             <div className="glass-card p-4 rounded-2xl border border-purple-900/30 text-left space-y-2 text-xs text-slate-400">
               <span className="font-bold text-white block">Next Steps:</span>
-              <p>1. We verify host identity & details</p>
-              <p>2. Email notification sent upon approval</p>
-              <p>3. Event goes live on Findathon discovery engine</p>
+              <p>1. Host identity & event details verified</p>
+              <p>2. Confirmation notification recorded on your account</p>
+              <p>3. Event is live on Findathon discovery engine</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {submittedHackathon?.id && (
+                <Link
+                  href={`/hackathons/${submittedHackathon.id}`}
+                  className="flex-1 py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 transition-all text-center"
+                >
+                  View Event Page ↗
+                </Link>
+              )}
               <button
                 onClick={() => router.push('/account?tab=submissions')}
-                className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30"
+                className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
               >
-                View My Submissions →
+                My Submissions →
               </button>
             </div>
           </div>

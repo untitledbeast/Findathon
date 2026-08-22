@@ -14,24 +14,28 @@ export interface HackathonSearchSpecificationProps {
   difficulty?: 'beginner' | 'intermediate' | 'advanced' | 'open';
   hasCertificate?: boolean;
   isHiring?: boolean;
-  pagination: Pagination;
+  pagination?: Pagination;
 }
 
 export class HackathonSearchSpecification {
-  constructor(public props: HackathonSearchSpecificationProps) {}
+  constructor(public props: HackathonSearchSpecificationProps) {
+    if (!this.props.pagination) {
+      this.props.pagination = new Pagination(1, 12);
+    }
+  }
 
   public getQuery(): SearchQuery {
     return new SearchQuery(this.props.query || '');
   }
 
   public getPagination(): Pagination {
-    return this.props.pagination;
+    return this.props.pagination || new Pagination(1, 12);
   }
 
   public toJSON() {
     return {
       ...this.props,
-      pagination: this.props.pagination.toJSON()
+      pagination: (this.props.pagination || new Pagination(1, 12)).toJSON()
     };
   }
 }

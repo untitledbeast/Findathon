@@ -1,8 +1,7 @@
-'use client';
-
 import React from 'react';
 import { MapHackathon, getMarkerStatus, MARKER_COLORS } from '@/lib/map-utils';
-import { Trophy, Calendar, MapPin, Building2, Sparkles } from 'lucide-react';
+import { formatDateRange } from '@/lib/utils/formatters';
+import { Trophy, Calendar, MapPin, Building2 } from 'lucide-react';
 
 interface MapMarkerPreviewProps {
   hackathon: MapHackathon;
@@ -16,15 +15,6 @@ export default function MapMarkerPreview({ hackathon, x, y, visible }: MapMarker
 
   const status = getMarkerStatus(hackathon);
   const statusColor = MARKER_COLORS[status];
-
-  const formatDate = (dStr?: string) => {
-    if (!dStr) return 'TBD';
-    try {
-      return new Date(dStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return dStr;
-    }
-  };
 
   const statusLabels: Record<string, string> = {
     open: 'Open for Registration',
@@ -73,7 +63,7 @@ export default function MapMarkerPreview({ hackathon, x, y, visible }: MapMarker
 
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span>{formatDate(hackathon.start_date)} – {formatDate(hackathon.end_date)}</span>
+            <span>{formatDateRange(hackathon.start_date, hackathon.end_date)}</span>
           </div>
         </div>
 

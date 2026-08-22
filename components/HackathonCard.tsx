@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Hackathon } from '@/lib/supabase';
+import { formatDateRange, getSafeImageUrl, DEFAULT_HACKATHON_COVER } from '@/lib/utils/formatters';
 import { Calendar, MapPin, Globe, Bookmark, ExternalLink, Sparkles, Building2 } from 'lucide-react';
 
 interface HackathonCardProps {
@@ -26,19 +27,9 @@ export default function HackathonCard({ hackathon, isSaved = false, onToggleSave
     }
   };
 
-  // Date formatting helper
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const defaultCover = 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000&auto=format&fit=crop';
-  const coverUrl = (imgError || !hackathon.cover_image_url) ? defaultCover : hackathon.cover_image_url;
+  const coverUrl = imgError
+    ? DEFAULT_HACKATHON_COVER
+    : getSafeImageUrl(hackathon.cover_image_url);
 
   const getPlatformSource = () => {
     if (hackathon.source && hackathon.source !== 'Manual' && hackathon.source !== 'Community') {
@@ -142,7 +133,7 @@ export default function HackathonCard({ hackathon, isSaved = false, onToggleSave
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
             <span>
-              {formatDate(hackathon.start_date)} — {formatDate(hackathon.end_date)}
+              {formatDateRange(hackathon.start_date, hackathon.end_date)}
             </span>
           </div>
 

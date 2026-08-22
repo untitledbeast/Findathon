@@ -49,20 +49,24 @@ export function useSearch(initialFilters: HackathonSearchFilters = {}) {
 
     try {
       const res = await hackathonsApi.search(activeFilters);
+      const rawHackathons = res?.hackathons || (Array.isArray(res) ? res : []);
+      const totalCount = res?.total ?? rawHackathons.length;
+      const nextCursor = res?.cursor;
+
       if (append) {
         setData(prev => ({
-          hackathons: [...(prev?.hackathons || []), ...res.hackathons],
-          total: res.total,
-          cursor: res.cursor
+          hackathons: [...(prev?.hackathons || []), ...rawHackathons],
+          total: totalCount,
+          cursor: nextCursor
         }));
       } else {
         setData({
-          hackathons: res.hackathons,
-          total: res.total,
-          cursor: res.cursor
+          hackathons: rawHackathons,
+          total: totalCount,
+          cursor: nextCursor
         });
       }
-      setHasMore(Boolean(res.cursor));
+      setHasMore(Boolean(nextCursor));
     } catch (err) {
       setError(err instanceof BaseError ? err : new BaseError(err instanceof Error ? err.message : 'Search failed'));
     } finally {

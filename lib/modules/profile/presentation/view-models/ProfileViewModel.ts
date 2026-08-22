@@ -44,8 +44,8 @@ export function createProfileViewModel(dto: ProfileDTO): ProfileViewModel {
     bioText: dto.bio || 'No bio provided yet.',
     organizationLabel: dto.organization ? `@ ${dto.organization}` : 'Independent Developer',
     completionPercentage,
-    xpLabel: `${dto.xpPoints.toLocaleString()} XP`,
-    skillsList: dto.skills,
-    interestsList: dto.interests,
+    xpLabel: `${(dto.xpPoints || 0).toLocaleString()} XP`,
+    skillsList: dto.skills || [],
+    interestsList: dto.interests || [],
   };
 }

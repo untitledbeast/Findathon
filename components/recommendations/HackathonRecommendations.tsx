@@ -259,9 +259,9 @@ export default function HackathonRecommendations({ onOpenIntelligenceTab }: Hack
                           </span>
                         )}
                         <span>•</span>
-                        {hackathon.prizeAmount > 0 && (
+                        {(hackathon.prizeAmount || 0) > 0 && (
                           <span className="text-amber-400 font-mono flex items-center gap-0.5">
-                            <Trophy className="w-3 h-3" /> ${hackathon.prizeAmount.toLocaleString()}
+                            <Trophy className="w-3 h-3" /> ${(hackathon.prizeAmount || 0).toLocaleString()}
                           </span>
                         )}
                       </div>
