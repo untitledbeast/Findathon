@@ -25,4 +25,5 @@ export interface IDeveloperProfileRepository {
   deleteExternalAccount(userId: string, provider: string): Promise<void>;
   getExternalAccount(userId: string, provider: string): Promise<ExternalAccountData | null>;
   getExternalAccounts(userId: string): Promise<ExternalAccountData[]>;
+  findByProviderUserId(provider: 'github' | 'leetcode' | 'linkedin', providerUserId: string): Promise<ExternalAccountData | null>;
 }

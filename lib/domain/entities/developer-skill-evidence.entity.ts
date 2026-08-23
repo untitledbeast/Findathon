@@ -1,5 +1,5 @@
-export type SkillEvidenceSource = 'github' | 'leetcode' | 'findathon';
-export type SkillEvidenceType = 'repo' | 'submission' | 'project' | 'activity';
+export type SkillEvidenceSource = 'github' | 'leetcode' | 'linkedin' | 'findathon';
+export type SkillEvidenceType = 'repo' | 'submission' | 'project' | 'activity' | 'identity_profile';
 
 export interface DeveloperSkillEvidenceEntityProps {
   id: string;

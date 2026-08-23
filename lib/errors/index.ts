@@ -64,4 +64,5 @@ export function formatError(err: unknown) {
 
 export * from './github.errors';
 export * from './leetcode.errors';
+export * from './linkedin.errors';
 export * from './result';

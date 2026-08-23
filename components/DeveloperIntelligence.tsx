@@ -14,8 +14,7 @@ import {
   AlertCircle,
   Unlink,
   Flame,
-  Star,
-  GraduationCap
+  Star
 } from 'lucide-react';
 import { DeveloperProfileDTO } from '@/lib/domain/mappers/developer-profile.mapper';
 
@@ -40,6 +39,12 @@ interface EvidenceItem {
     ranking?: number;
     contestRating?: number;
     attendedContestsCount?: number;
+    sub?: string;
+    email?: string;
+    email_verified?: boolean;
+    picture_url?: string;
+    locale?: string;
+    has_linkedin_connection?: boolean;
   };
   weight: number;
 }
@@ -105,6 +110,14 @@ function LeetCodeIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function LinkedInIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z" />
+    </svg>
+  );
+}
+
 export default function DeveloperIntelligence() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -113,6 +126,7 @@ export default function DeveloperIntelligence() {
   const [evidenceCount, setEvidenceCount] = useState<number>(0);
   const [recentRepos, setRecentRepos] = useState<EvidenceItem[]>([]);
   const [leetCodeSummary, setLeetCodeSummary] = useState<EvidenceItem['signals'] | null>(null);
+  const [linkedInSummary, setLinkedInSummary] = useState<EvidenceItem['signals'] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   // GitHub State
@@ -125,6 +139,11 @@ export default function DeveloperIntelligence() {
   const [isSyncingLeetCode, setIsSyncingLeetCode] = useState<boolean>(false);
   const [isDisconnectingLeetCode, setIsDisconnectingLeetCode] = useState<boolean>(false);
   const [leetCodeError, setLeetCodeError] = useState<string | null>(null);
+
+  // LinkedIn State
+  const [isConnectingLinkedIn, setIsConnectingLinkedIn] = useState<boolean>(false);
+  const [isDisconnectingLinkedIn, setIsDisconnectingLinkedIn] = useState<boolean>(false);
+  const [linkedInError, setLinkedInError] = useState<string | null>(null);
 
   // Global State
   const [recomputing, setRecomputing] = useState<boolean>(false);
@@ -150,6 +169,10 @@ export default function DeveloperIntelligence() {
           (e: EvidenceItem) => e.source === 'leetcode' && e.evidenceType === 'activity' && e.signals?.totalSolved !== undefined
         );
         setLeetCodeSummary(lc ? lc.signals : null);
+        const li = (data.data.recentEvidence || []).find(
+          (e: EvidenceItem) => e.source === 'linkedin' && e.evidenceType === 'identity_profile'
+        );
+        setLinkedInSummary(li ? li.signals : null);
         setError(null);
       } else {
         setError(data.error?.message || 'Failed to load developer intelligence profile');
@@ -179,6 +202,10 @@ export default function DeveloperIntelligence() {
             (e: EvidenceItem) => e.source === 'leetcode' && e.evidenceType === 'activity' && e.signals?.totalSolved !== undefined
           );
           setLeetCodeSummary(lc ? lc.signals : null);
+          const li = (data.data.recentEvidence || []).find(
+            (e: EvidenceItem) => e.source === 'linkedin' && e.evidenceType === 'identity_profile'
+          );
+          setLinkedInSummary(li ? li.signals : null);
         } else {
           setError(data.error?.message || 'Failed to load developer intelligence profile');
         }
@@ -194,6 +221,8 @@ export default function DeveloperIntelligence() {
 
     const githubStatus = searchParams?.get('github');
     const githubError = searchParams?.get('github_error');
+    const linkedinStatus = searchParams?.get('linkedin');
+    const linkedinError = searchParams?.get('linkedin_error');
 
     if (githubStatus === 'connected') {
       const timer = setTimeout(() => {
@@ -210,6 +239,27 @@ export default function DeveloperIntelligence() {
         const errorText = decodeURIComponent(githubError);
         setError(errorText.includes('rate') ? 'GitHub is rate-limiting us. Please try again in a few minutes.' : errorText);
         showToast(`GitHub error: ${errorText}`, 'error');
+        router.replace('/account?tab=intelligence', { scroll: false });
+      }, 0);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
+    } else if (linkedinStatus === 'connected') {
+      const timer = setTimeout(() => {
+        showToast('LinkedIn profile connected! 💼', 'success');
+        refreshProfile();
+        router.replace('/account?tab=intelligence', { scroll: false });
+      }, 0);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
+    } else if (linkedinError) {
+      const timer = setTimeout(() => {
+        const errorText = decodeURIComponent(linkedinError);
+        setLinkedInError(errorText);
+        showToast(`LinkedIn error: ${errorText}`, 'error');
         router.replace('/account?tab=intelligence', { scroll: false });
       }, 0);
       return () => {
@@ -343,6 +393,47 @@ export default function DeveloperIntelligence() {
       showToast(err instanceof Error ? err.message : 'Failed to disconnect LeetCode', 'error');
     } finally {
       setIsDisconnectingLeetCode(false);
+    }
+  };
+
+  // LinkedIn Connection Handlers
+  const handleConnectLinkedIn = async () => {
+    setIsConnectingLinkedIn(true);
+    setLinkedInError(null);
+    try {
+      const res = await fetch('/api/v1/developer-profile/connect/linkedin');
+      const data = await res.json();
+      if (data.success && data.data?.authUrl) {
+        window.location.href = data.data.authUrl;
+      } else {
+        setLinkedInError(data.error?.message || 'Could not initialize LinkedIn OAuth flow');
+        setIsConnectingLinkedIn(false);
+      }
+    } catch (err) {
+      setLinkedInError(err instanceof Error ? err.message : 'Failed to connect to LinkedIn');
+      setIsConnectingLinkedIn(false);
+    }
+  };
+
+  const handleDisconnectLinkedIn = async () => {
+    if (!confirm('Are you sure you want to disconnect your LinkedIn account? Identity evidence will be removed.')) {
+      return;
+    }
+    setIsDisconnectingLinkedIn(true);
+    try {
+      const res = await fetch('/api/v1/developer-profile/accounts/linkedin', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('LinkedIn account disconnected.', 'success');
+        setLinkedInSummary(null);
+        refreshProfile();
+      } else {
+        showToast(data.error?.message || 'Failed to disconnect LinkedIn', 'error');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to disconnect LinkedIn', 'error');
+    } finally {
+      setIsDisconnectingLinkedIn(false);
     }
   };
 
@@ -605,27 +696,82 @@ export default function DeveloperIntelligence() {
               </div>
 
               {/* LinkedIn Card */}
-              <div className="relative overflow-hidden rounded-2xl border border-slate-800/40 bg-[#0D1224]/30 p-5 backdrop-blur-xl opacity-75 flex flex-col justify-between space-y-4">
+              <div className="relative group overflow-hidden rounded-2xl border border-blue-900/30 bg-[#0D1224]/60 p-5 backdrop-blur-xl transition-all hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-950/20 flex flex-col justify-between space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-950/30 border border-blue-800/40 flex items-center justify-center text-blue-400">
-                      <GraduationCap className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-blue-950/40 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                      <LinkedInIcon className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-300">LinkedIn</h4>
-                      <p className="text-xs text-slate-500">Work roles & education</p>
+                      <h4 className="text-sm font-bold text-white">LinkedIn</h4>
+                      <p className="text-xs text-slate-400">Verified identity & profile</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800/80 text-slate-400 border border-slate-700/50">
-                    Roadmap
-                  </span>
+                  {profile?.linkedinConnected ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                      <CheckCircle2 className="w-3 h-3" /> Connected
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-slate-500">Not connected</span>
+                  )}
                 </div>
-                <button
-                  disabled
-                  className="w-full py-2 px-4 rounded-xl text-xs font-semibold text-slate-500 bg-slate-900/50 border border-slate-800 cursor-not-allowed text-center"
-                >
-                  Provider in Roadmap
-                </button>
+
+                {linkedInError && (
+                  <div className="p-2.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-[11px] text-rose-200 flex items-start gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                    <span className="leading-tight">{linkedInError}</span>
+                  </div>
+                )}
+
+                <div>
+                  {profile?.linkedinConnected ? (
+                    <div className="space-y-3 pt-2 border-t border-purple-900/20">
+                      {/* Identity Details Card */}
+                      <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center gap-2.5">
+                        {linkedInSummary?.picture_url ? (
+                          <img
+                            src={String(linkedInSummary.picture_url)}
+                            alt="LinkedIn Avatar"
+                            className="w-8 h-8 rounded-full border border-blue-400/40 object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-blue-900/50 border border-blue-500/30 text-blue-300 font-bold text-xs flex items-center justify-center">
+                            {(typeof linkedInSummary?.name === 'string' && linkedInSummary.name.charAt(0)) || 'L'}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-white truncate">
+                            {(typeof linkedInSummary?.name === 'string' && linkedInSummary.name) || 'Connected Member'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {(typeof linkedInSummary?.email === 'string' && linkedInSummary.email) || 'Identity Verified (OIDC)'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end">
+                        <button
+                          onClick={handleDisconnectLinkedIn}
+                          disabled={isDisconnectingLinkedIn}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <Unlink className="w-3 h-3" />
+                          {isDisconnectingLinkedIn ? 'Disconnecting...' : 'Disconnect'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleConnectLinkedIn}
+                      disabled={isConnectingLinkedIn}
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border border-blue-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-950/40 disabled:opacity-50"
+                    >
+                      <LinkedInIcon className="w-4 h-4" />
+                      {isConnectingLinkedIn ? 'Connecting...' : 'Connect LinkedIn'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

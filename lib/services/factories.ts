@@ -6,6 +6,7 @@ import { SupabaseNotificationRepository } from '../repositories/supabase-notific
 import { SupabaseDeveloperProfileRepository } from '../repositories/supabase-developer-profile.repository';
 import { GitHubProvider } from '../providers/github.provider';
 import { LeetCodeProvider } from '../providers/leetcode.provider';
+import { LinkedInProvider } from '../providers/linkedin.provider';
 import { CacheService } from '../cache';
 import { eventBus } from '../domain/events/event-bus';
 import { SupabaseSearchProvider } from '../infrastructure/search';
@@ -51,6 +52,10 @@ export function createGitHubProvider() {
 
 export function createLeetCodeProvider() {
   return new LeetCodeProvider();
+}
+
+export function createLinkedInProvider() {
+  return new LinkedInProvider();
 }
 
 export function createCacheService() {
@@ -114,7 +119,8 @@ export function createDeveloperProfileCommandService() {
   return new DeveloperProfileCommandService(
     createDeveloperProfileRepository(),
     createGitHubProvider(),
-    createLeetCodeProvider()
+    createLeetCodeProvider(),
+    createLinkedInProvider()
   );
 }
 

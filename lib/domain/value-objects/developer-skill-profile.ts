@@ -117,6 +117,11 @@ export class DeveloperSkillProfile {
     let leetcodeContestRating: number | null = null;
 
     for (const evidence of evidenceList) {
+      // LinkedIn standard OIDC establishes identity only (zero technical weight contribution)
+      if (evidence.source === 'linkedin') {
+        continue;
+      }
+
       // 1. Calculate recency factor
       const timestamp = evidence.updatedAt || evidence.createdAt || now;
       const ageDays = Math.max(0, (now - timestamp) / DAY_MS);

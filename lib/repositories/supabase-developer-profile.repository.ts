@@ -242,4 +242,27 @@ export class SupabaseDeveloperProfileRepository implements IDeveloperProfileRepo
       throw new DatabaseError('Failed to retrieve external accounts');
     }
   }
+
+  public async findByProviderUserId(provider: 'github' | 'leetcode' | 'linkedin', providerUserId: string): Promise<ExternalAccountData | null> {
+    try {
+      const client = await this.getClient();
+      const { data, error } = await client
+        .from('developer_external_accounts')
+        .select('*')
+        .eq('provider', provider)
+        .eq('provider_user_id', providerUserId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('[DeveloperProfileRepository.findByProviderUserId] Supabase error:', error);
+        throw new DatabaseError(error.message);
+      }
+      if (!data) return null;
+
+      return DeveloperProfileMapper.accountRowToData(data as unknown as DeveloperExternalAccountDatabaseRow);
+    } catch (err) {
+      if (err instanceof DatabaseError) throw err;
+      throw new DatabaseError('Failed to query external account by provider user ID');
+    }
+  }
 }
