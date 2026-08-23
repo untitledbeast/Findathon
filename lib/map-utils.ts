@@ -80,10 +80,17 @@ export function clusterHackathons(hackathons: MapHackathon[], zoomLevel: number)
   const clusters: Record<string, ClusterPoint> = {};
 
   hackathons.forEach(h => {
+    // Online events have no physical map coordinates
+    if (h.is_online) return;
+
+    if (h.latitude === null || h.latitude === undefined || h.longitude === null || h.longitude === undefined) {
+      return;
+    }
+
     const lat = Number(h.latitude);
     const lng = Number(h.longitude);
 
-    if (isNaN(lat) || isNaN(lng) || lat === 0 && lng === 0) {
+    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0) || !isFinite(lat) || !isFinite(lng)) {
       return;
     }
 

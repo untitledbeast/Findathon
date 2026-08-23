@@ -228,7 +228,7 @@ function DiscoveryPlatformContent() {
   useEffect(() => {
     if (L && mapRef.current && filteredHackathons.length > 0) {
       const validCoords = filteredHackathons
-        .filter(h => h.latitude && h.longitude)
+        .filter(h => !h.is_online && h.latitude !== null && h.longitude !== null && !isNaN(Number(h.latitude)) && !isNaN(Number(h.longitude)))
         .map(h => [Number(h.latitude), Number(h.longitude)] as [number, number]);
 
       if (validCoords.length > 0) {
