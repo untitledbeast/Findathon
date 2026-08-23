@@ -231,11 +231,20 @@ function MainAppContent() {
 
   const handleFilterTab = (tab: 'all' | 'online' | 'offline' | 'ai' | 'web3') => {
     setActiveFilterTab(tab);
-    if (tab === 'all') searchHook.setFilters({});
-    else if (tab === 'online') searchHook.updateFilter('isOnline', true);
-    else if (tab === 'offline') searchHook.updateFilter('isOnline', false);
-    else if (tab === 'ai') searchHook.updateFilter('tags', ['ai']);
-    else if (tab === 'web3') searchHook.updateFilter('tags', ['web3']);
+    if (tab === 'all') {
+      const updated = { ...searchHook.filters };
+      delete updated.isOnline;
+      delete updated.cursor;
+      searchHook.setFilters(updated);
+    } else if (tab === 'online') {
+      searchHook.updateFilter('isOnline', true);
+    } else if (tab === 'offline') {
+      searchHook.updateFilter('isOnline', false);
+    } else if (tab === 'ai') {
+      searchHook.updateFilter('tags', ['ai']);
+    } else if (tab === 'web3') {
+      searchHook.updateFilter('tags', ['web3']);
+    }
   };
 
   return (

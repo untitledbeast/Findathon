@@ -161,9 +161,9 @@ export default function UniversalSearch({ isOpen, onClose, onSelectFilters }: Un
               </span>
             )}
 
-            {parsedIntent.detectedEntities.prizeMin !== null && (
+            {parsedIntent.detectedEntities.prizeMin != null && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-500/30">
-                💰 ₹{parsedIntent.detectedEntities.prizeMin.toLocaleString()}+
+                💰 ₹{(parsedIntent.detectedEntities.prizeMin || 0).toLocaleString()}+
               </span>
             )}
           </div>

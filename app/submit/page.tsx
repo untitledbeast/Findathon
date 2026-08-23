@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import HackathonCard from '@/components/HackathonCard';
 import { useAuth } from '@/lib/auth-context';
 import { transportClient } from '@/lib/transport/http-client';
+import { HackathonDTO } from '@/types';
+import PlaceAutocomplete from '@/components/PlaceAutocomplete';
+import { PlaceSuggestion } from '@/app/api/v1/places/autocomplete/route';
 import {
   Check,
   ArrowRight,
@@ -36,6 +40,7 @@ export default function SubmissionWizardPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedHackathon, setSubmittedHackathon] = useState<HackathonDTO | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -55,6 +60,7 @@ export default function SubmissionWizardPage() {
   const [mode, setMode] = useState<'online' | 'offline' | 'hybrid'>('online');
   const [city, setCity] = useState('');
   const [venue, setVenue] = useState('');
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
   const [prizePool, setPrizePool] = useState('$10,000');
 
   // Step 3
@@ -133,7 +139,7 @@ export default function SubmissionWizardPage() {
 
       const finalTags = selectedTags.length > 0 ? selectedTags : ['AI/ML'];
 
-      await transportClient('/api/v1/hackathons', {
+      const createdHackathon = await transportClient<HackathonDTO>('/api/v1/hackathons', {
         method: 'POST',
         body: JSON.stringify({
           title: title.trim(),
@@ -146,8 +152,11 @@ export default function SubmissionWizardPage() {
           endDate: finalEndDate,
           isOnline: mode === 'online',
           mode,
-          locationCity: mode === 'online' ? undefined : (city.trim() || undefined),
-          locationCollege: mode === 'online' ? undefined : (venue.trim() || undefined),
+          locationCity: mode === 'online' ? undefined : (selectedPlace?.city || city.trim() || undefined),
+          locationCollege: mode === 'online' ? undefined : (selectedPlace?.venue || selectedPlace?.title || venue.trim() || undefined),
+          fullAddress: mode === 'online' ? undefined : (selectedPlace?.formattedAddress || undefined),
+          latitude: mode === 'online' ? null : (selectedPlace?.latitude || null),
+          longitude: mode === 'online' ? null : (selectedPlace?.longitude || null),
           prizePool: prizePool.trim() || undefined,
           minTeamSize: minTeam,
           maxTeamSize: maxTeam,
@@ -158,6 +167,7 @@ export default function SubmissionWizardPage() {
         })
       });
 
+      setSubmittedHackathon(createdHackathon);
       setIsSubmitted(true);
     } catch (err: unknown) {
       console.error('Hackathon submission error:', err);
@@ -173,27 +183,35 @@ export default function SubmissionWizardPage() {
     return (
       <div className="min-h-screen bg-[#060816] text-[#F6F8FC] flex flex-col selection:bg-purple-600 selection:text-white">
         <Navbar />
-        <main className="flex-1 flex items-center justify-center p-6 text-center">
+        <main className="flex-1 flex items-center justify-center p-6 text-center pt-24">
           <div className="glass-card p-12 rounded-3xl max-w-lg w-full border border-purple-500/40 space-y-6 shadow-2xl relative overflow-hidden">
             <div className="text-6xl animate-bounce">🎉</div>
             <div className="space-y-2">
               <h2 className="text-3xl font-black glow-text">Hackathon Submitted!</h2>
-              <p className="text-xs text-slate-300">Our verification team will review your listing within 24-48 hours.</p>
+              <p className="text-xs text-slate-300">Your hackathon has been received and registered on Findathon.</p>
             </div>
 
             <div className="glass-card p-4 rounded-2xl border border-purple-900/30 text-left space-y-2 text-xs text-slate-400">
               <span className="font-bold text-white block">Next Steps:</span>
-              <p>1. We verify host identity & details</p>
-              <p>2. Email notification sent upon approval</p>
-              <p>3. Event goes live on Findathon discovery engine</p>
+              <p>1. Host identity & event details verified</p>
+              <p>2. Confirmation notification recorded on your account</p>
+              <p>3. Event is live on Findathon discovery engine</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {submittedHackathon?.id && (
+                <Link
+                  href={`/hackathons/${submittedHackathon.id}`}
+                  className="flex-1 py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 transition-all text-center"
+                >
+                  View Event Page ↗
+                </Link>
+              )}
               <button
                 onClick={() => router.push('/account?tab=submissions')}
-                className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30"
+                className="flex-1 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
               >
-                View My Submissions →
+                My Submissions →
               </button>
             </div>
           </div>
@@ -409,27 +427,26 @@ export default function SubmissionWizardPage() {
               </div>
 
               {mode !== 'online' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">City</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Bangalore"
-                      className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">Venue / College</label>
-                    <input
-                      type="text"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="e.g. IIT Bombay"
-                      className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm"
-                    />
-                  </div>
+                <div className="pt-2">
+                  <PlaceAutocomplete
+                    selectedPlace={selectedPlace}
+                    onSelect={(place) => {
+                      setSelectedPlace(place);
+                      setCity(place.city);
+                      setVenue(place.venue || place.title);
+                    }}
+                    onClear={() => {
+                      setSelectedPlace(null);
+                      setCity('');
+                      setVenue('');
+                    }}
+                    fallbackCity={city}
+                    fallbackVenue={venue}
+                    onManualChange={(newCity, newVenue) => {
+                      setCity(newCity);
+                      setVenue(newVenue);
+                    }}
+                  />
                 </div>
               )}
 

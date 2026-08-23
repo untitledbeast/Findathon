@@ -40,12 +40,7 @@ export async function GET(req: NextRequest) {
 
     const res = NextResponse.json({
       success: true,
-      data: result.value.hackathons,
-      meta: {
-        total: result.value.total,
-        cursor: result.value.cursor,
-        took: result.value.took
-      }
+      data: result.value
     });
 
     res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');

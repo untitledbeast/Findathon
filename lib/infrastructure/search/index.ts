@@ -9,10 +9,14 @@ export interface ISearchProvider {
 
 export class SupabaseSearchProvider implements ISearchProvider {
   public async search(query: string, filters: HackathonFilters, pagination: PaginationParams): Promise<{ data: HackathonDTO[]; total: number }> {
-    let builder = supabase.from('hackathons').select('*', { count: 'exact' });
+    let builder = supabase
+      .from('hackathons')
+      .select('*', { count: 'exact' })
+      .eq('status', 'approved');
 
     if (query?.trim()) {
-      builder = builder.textSearch('search_vector', query.trim(), { type: 'websearch' });
+      const q = query.trim();
+      builder = builder.or(`title.ilike.%${q}%,description.ilike.%${q}%,location_city.ilike.%${q}%`);
     }
 
     if (filters.city) {

@@ -32,9 +32,9 @@ export class SupabaseHackathonRepository implements IHackathonRepository {
       let query = supabase.from('hackathons').select('*');
 
       if (filters?.lifecycleState) {
-        query = query.eq('lifecycle_state', filters.lifecycleState);
+        query = query.eq('status', filters.lifecycleState);
       } else {
-        query = query.or('status.eq.approved,lifecycle_state.eq.published');
+        query = query.eq('status', 'approved');
       }
 
       if (filters?.tags && filters.tags.length > 0) {
@@ -53,10 +53,6 @@ export class SupabaseHackathonRepository implements IHackathonRepository {
         query = query.eq('is_online', true);
       }
 
-      if (filters?.prizeMin && filters.prizeMin > 0) {
-        query = query.gte('prize_amount', filters.prizeMin);
-      }
-
       if (filters?.searchQuery) {
         const q = filters.searchQuery.trim();
         query = query.or(`title.ilike.%${q}%,location_city.ilike.%${q}%,organizer.ilike.%${q}%`);
@@ -68,7 +64,7 @@ export class SupabaseHackathonRepository implements IHackathonRepository {
 
       const { data, error } = await query;
       if (error || !data || data.length === 0) {
-        return new MockHackathonRepository().findAll(filters);
+        return [];
       }
 
       return data.map(item => toHackathonDTO(item));

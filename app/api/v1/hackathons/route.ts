@@ -11,7 +11,7 @@ import { submitHackathonSchema } from '@/lib/validators/hackathon.schema';
 import { validate } from '@/lib/middleware/validate';
 import { formatError } from '@/lib/errors';
 import { checkRateLimit } from '@/lib/middleware/rate-limit';
-import { GeocodeService } from '@/lib/services/geocode.service';
+import { LocationResolutionService } from '@/lib/location';
 
 /**
  * GET /api/v1/hackathons
@@ -400,12 +400,9 @@ export async function POST(req: NextRequest) {
         validatedData.locationCollege
       )
     ) {
-      GeocodeService
-        .geocodeAndSaveHackathon(
-          result.value.id,
-          validatedData.locationCity,
-          validatedData.locationCollege
-        )
+      const locationService = new LocationResolutionService();
+      locationService
+        .resolveSingle(result.value.id)
         .catch(() => {
           // Ignore background geocoding errors.
         });

@@ -45,7 +45,7 @@ export function useHomepageData() {
           prizes: '$45M+',
           cities: 150
         })),
-        hackathonsApi.search({ limit: 8 }).then(r => r.hackathons).catch(() => []),
+        hackathonsApi.search({ limit: 8 }).then(r => r?.hackathons || (Array.isArray(r) ? r : [])).catch(() => []),
         transportClient<TrendingTag[]>('/api/v1/tags/trending').catch(() => [])
       ]);
 

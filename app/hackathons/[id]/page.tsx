@@ -7,9 +7,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
 async function getHackathonById(id: string) {
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
-  const { data } = await supabase.from('hackathons').select('*').eq('id', id).single();
-  return data;
+  try {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data, error } = await supabase.from('hackathons').select('*').eq('id', id).maybeSingle();
+    if (error || !data) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata(

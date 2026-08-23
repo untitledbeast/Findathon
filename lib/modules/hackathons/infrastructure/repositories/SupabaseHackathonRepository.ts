@@ -28,16 +28,22 @@ export class SupabaseHackathonRepository implements IHackathonRepository {
   }
 
   public async search(spec: HackathonSearchSpecification): Promise<{ items: HackathonAggregate[]; total: number; cursor?: string }> {
-    let query = supabase.from('hackathons').select('*', { count: 'exact' });
+    let query = supabase
+      .from('hackathons')
+      .select('*', { count: 'exact' })
+      .eq('status', 'approved');
 
     const f = spec.filters;
     if (f.isOnline !== undefined) query = query.eq('is_online', f.isOnline);
     if (f.city) query = query.ilike('location_city', `%${f.city}%`);
-    if (f.tags && f.tags.length > 0) query = query.contains('tags', f.tags);
-    if (f.query) query = query.or(`title.ilike.%${f.query}%,description.ilike.%${f.query}%`);
+    if (f.tags && f.tags.length > 0) query = query.overlaps('tags', f.tags);
+    if (f.query) {
+      const q = f.query.trim();
+      query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%,location_city.ilike.%${q}%`);
+    }
 
     const limit = f.limit || 20;
-    query = query.range(0, limit - 1);
+    query = query.range(0, limit - 1).order('created_at', { ascending: false });
 
     const { data, count, error } = await query;
     if (error || !data) return { items: [], total: 0 };
