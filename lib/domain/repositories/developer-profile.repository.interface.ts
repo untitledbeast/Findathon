@@ -6,6 +6,9 @@ export interface ExternalAccountData {
   userId: string;
   provider: 'github' | 'leetcode' | 'linkedin';
   providerUserId?: string | null;
+  name?: string | null;
+  email?: string | null;
+  profilePicture?: string | null;
   accessTokenEncrypted?: string | null;
   refreshTokenEncrypted?: string | null;
   scopes?: string[];

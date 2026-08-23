@@ -2,19 +2,22 @@ import { RequestContext } from '../context/request-context';
 import { IDeveloperProfileRepository } from '../domain/repositories/developer-profile.repository.interface';
 import { GitHubProvider } from '../providers/github.provider';
 import { LeetCodeProvider } from '../providers/leetcode.provider';
+import { LinkedInProvider } from '../providers/linkedin.provider';
 import { DeveloperProfileEntity } from '../domain/entities/developer-profile.entity';
 import { DeveloperSkillProfile } from '../domain/value-objects/developer-skill-profile';
 import { isValidUUID } from '../domain/mappers/developer-profile.mapper';
 import { encryptToken } from '../security/token-encryption';
 import { AuthenticationError, NotFoundError, BaseError } from '../errors';
 import { LeetCodeSyncCooldownError } from '../errors/leetcode.errors';
+import { LinkedInApiError } from '../errors/linkedin.errors';
 import crypto from 'crypto';
 
 export class DeveloperProfileCommandService {
   constructor(
     private readonly repository: IDeveloperProfileRepository,
     private readonly githubProvider: GitHubProvider,
-    private readonly leetCodeProvider: LeetCodeProvider = new LeetCodeProvider()
+    private readonly leetCodeProvider: LeetCodeProvider = new LeetCodeProvider(),
+    private readonly linkedInProvider: LinkedInProvider = new LinkedInProvider()
   ) {}
 
   /**
@@ -146,6 +149,116 @@ export class DeveloperProfileCommandService {
   }
 
   /**
+   * Connects user LinkedIn profile:
+   * 1. Exchanges OAuth authorization code for access token
+   * 2. Encrypts and stores tokens in developer_external_accounts (status = 'active')
+   * 3. Fetches authenticated userinfo (sub, name, email, picture) from LinkedIn OpenID Connect endpoint
+   * 4. Extracts skill evidence and upserts evidence records idempotently
+   * 5. Recomputes combined developer intelligence profile
+   */
+  public async connectLinkedIn(context: RequestContext, code: string): Promise<DeveloperProfileEntity> {
+    if (!context.user || !context.user.id || !isValidUUID(context.user.id)) {
+      throw new AuthenticationError('Valid authenticated user session required to connect LinkedIn');
+    }
+    const userId = context.user.id;
+
+    // 1. Exchange authorization code
+    const authResult = await this.linkedInProvider.exchangeCode(code);
+
+    try {
+      // 2. Encrypt and persist external account
+      const encryptedAccessToken = encryptToken(authResult.accessToken);
+      const encryptedRefreshToken = authResult.refreshToken ? encryptToken(authResult.refreshToken) : null;
+
+      // 3. Fetch user profile from OIDC userinfo endpoint
+      const userInfo = await this.linkedInProvider.fetchUserProfile(authResult.accessToken);
+
+      // 4. Derive display name with fallback chain
+      const displayName = userInfo.name
+        || [userInfo.given_name, userInfo.family_name].filter(Boolean).join(' ')
+        || 'LinkedIn User';
+
+      await this.repository.upsertExternalAccount({
+        userId,
+        provider: 'linkedin',
+        providerUserId: userInfo.sub,
+        name: displayName,
+        email: userInfo.email || null,
+        profilePicture: userInfo.picture || null,
+        accessTokenEncrypted: encryptedAccessToken,
+        refreshTokenEncrypted: encryptedRefreshToken,
+        scopes: authResult.scopes,
+        status: 'active',
+        lastSyncedAt: new Date().toISOString()
+      });
+
+      // 5. Generate evidence signals and upsert into database
+      const evidenceList = this.linkedInProvider.toEvidence(userId, userInfo);
+      await this.repository.saveEvidenceBatch(evidenceList);
+
+      // 6. Recompute aggregated profile
+      const updatedProfile = await this.recomputeProfileInternal(userId, undefined, undefined, true);
+      return updatedProfile;
+    } catch (err) {
+      console.error('[DeveloperProfileCommandService.connectLinkedIn] Sync failed:', err instanceof Error ? err.message : 'Unknown error');
+
+      // Map specific LinkedIn API errors to user-friendly messages
+      let userMessage = 'Failed to synchronize LinkedIn profile';
+      let errorCode = 'LINKEDIN_SYNC_ERROR';
+
+      if (err instanceof LinkedInApiError) {
+        if (err.statusCode === 401) {
+          userMessage = 'LinkedIn session expired. Please reconnect.';
+          errorCode = 'LINKEDIN_TOKEN_EXPIRED';
+        } else if (err.statusCode === 403) {
+          userMessage = 'LinkedIn denied access. Please check your LinkedIn privacy settings.';
+          errorCode = 'LINKEDIN_ACCESS_DENIED';
+        } else if (err.statusCode === 429) {
+          userMessage = 'LinkedIn is rate-limiting requests. Try again in a few minutes.';
+          errorCode = 'LINKEDIN_RATE_LIMITED';
+        } else if (err.statusCode >= 500) {
+          userMessage = 'LinkedIn is temporarily unavailable. Try again later.';
+          errorCode = 'LINKEDIN_SERVICE_UNAVAILABLE';
+        }
+      }
+
+      // Persist error status without crashing
+      try {
+        await this.repository.upsertExternalAccount({
+          userId,
+          provider: 'linkedin',
+          status: 'error',
+          lastSyncedAt: new Date().toISOString()
+        });
+      } catch {
+        // Ignore secondary error to avoid masking the primary
+      }
+
+      if (err instanceof BaseError) throw err;
+      throw new BaseError(userMessage, errorCode, 500);
+    }
+  }
+
+  /**
+   * Disconnects LinkedIn account, removes LinkedIn evidence signals, and refreshes profile.
+   */
+  public async disconnectLinkedIn(context: RequestContext): Promise<DeveloperProfileEntity> {
+    if (!context.user || !context.user.id || !isValidUUID(context.user.id)) {
+      throw new AuthenticationError('Valid authenticated user session required to disconnect LinkedIn');
+    }
+    const userId = context.user.id;
+
+    // 1. Delete external account record
+    await this.repository.deleteExternalAccount(userId, 'linkedin');
+
+    // 2. Delete LinkedIn evidence signals
+    await this.repository.deleteEvidenceBySource(userId, 'linkedin');
+
+    // 3. Recompute profile with linkedinConnected = false
+    return this.recomputeProfileInternal(userId, undefined, undefined, false);
+  }
+
+  /**
    * Refreshes LeetCode statistics for the currently connected profile with a 60-second cooldown.
    */
   public async syncLeetCode(context: RequestContext): Promise<DeveloperProfileEntity> {
@@ -254,7 +367,8 @@ export class DeveloperProfileCommandService {
   private async recomputeProfileInternal(
     userId: string,
     isGitHubConnectedOverride?: boolean,
-    isLeetCodeConnectedOverride?: boolean
+    isLeetCodeConnectedOverride?: boolean,
+    isLinkedInConnectedOverride?: boolean
   ): Promise<DeveloperProfileEntity> {
     // 1. Load all evidence for user across all sources
     const allEvidence = await this.repository.getEvidenceByUserId(userId);
@@ -274,7 +388,9 @@ export class DeveloperProfileCommandService {
       ? isLeetCodeConnectedOverride
       : externalAccounts.some(acc => acc.provider === 'leetcode' && acc.status === 'active');
 
-    const hasActiveLinkedIn = externalAccounts.some(acc => acc.provider === 'linkedin' && acc.status === 'active');
+    const hasActiveLinkedIn = isLinkedInConnectedOverride !== undefined
+      ? isLinkedInConnectedOverride
+      : externalAccounts.some(acc => acc.provider === 'linkedin' && acc.status === 'active');
 
     const now = Date.now();
     const updatedEntity = new DeveloperProfileEntity({
@@ -295,3 +411,4 @@ export class DeveloperProfileCommandService {
     return this.repository.upsert(updatedEntity);
   }
 }
+

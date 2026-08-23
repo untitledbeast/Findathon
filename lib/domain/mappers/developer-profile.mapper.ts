@@ -45,6 +45,9 @@ export interface DeveloperExternalAccountDatabaseRow {
   user_id: string;
   provider: string;
   provider_user_id: string | null;
+  name?: string | null;
+  email?: string | null;
+  profile_picture?: string | null;
   access_token_encrypted: string | null;
   refresh_token_encrypted: string | null;
   scopes: string[] | null;
@@ -153,6 +156,9 @@ export class DeveloperProfileMapper {
       userId: row.user_id,
       provider: row.provider as 'github' | 'leetcode' | 'linkedin',
       providerUserId: row.provider_user_id || null,
+      name: row.name || null,
+      email: row.email || null,
+      profilePicture: row.profile_picture || null,
       accessTokenEncrypted: row.access_token_encrypted || null,
       refreshTokenEncrypted: row.refresh_token_encrypted || null,
       scopes: row.scopes || [],
@@ -167,6 +173,9 @@ export class DeveloperProfileMapper {
       user_id: account.userId,
       provider: account.provider,
       provider_user_id: account.providerUserId || null,
+      name: account.name || null,
+      email: account.email || null,
+      profile_picture: account.profilePicture || null,
       access_token_encrypted: account.accessTokenEncrypted || null,
       refresh_token_encrypted: account.refreshTokenEncrypted || null,
       scopes: account.scopes || [],
