@@ -254,6 +254,99 @@ async function runLocationIntelligenceTests() {
     }
   }
 
+  // ─── [TEST 10] City-Only Location Without Venue (Zero Fake Coordinates) ─
+  console.log('\n[Test 10] City-Only Location (Reject City-Center Fallback):');
+  {
+    const res = await resolver.resolve({
+      isOnline: false,
+      city: 'Mumbai',
+      venue: null,
+      address: null,
+      country: 'India'
+    });
+
+    assert(res.status === 'UNRESOLVED', 'City-only without venue must be UNRESOLVED');
+    assert(res.latitude === null, 'Latitude must be null (No city center fallback)');
+    assert(res.longitude === null, 'Longitude must be null (No city center fallback)');
+    console.log('  ✓ Verified: City-only event safely returns UNRESOLVED with null coordinates');
+  }
+
+  // ─── [TEST 11] Event Lifecycle & Live Pulsing Status ─────────────
+  console.log('\n[Test 11] Event Lifecycle & Live Status Calculation:');
+  {
+    const { getHackathonLifecycle, getMarkerStatus } = await import('../lib/map-utils');
+
+    const now = new Date('2026-08-23T12:00:00Z');
+
+    // Live event (today is during hackathon)
+    const liveEvent = {
+      id: 'live-1',
+      title: 'Ongoing Hackathon',
+      description: '',
+      start_date: '2026-08-20',
+      end_date: '2026-08-25',
+      is_online: false,
+      tags: [],
+      register_url: '#',
+      organizer: 'Tech Club',
+      status: 'approved',
+      latitude: 19.0760,
+      longitude: 72.8777
+    };
+    assert(getHackathonLifecycle(liveEvent, now) === 'live', 'Must be marked as live');
+    assert(getMarkerStatus(liveEvent) === 'live', 'Marker status must be live');
+
+    // Upcoming event
+    const upcomingEvent = {
+      ...liveEvent,
+      id: 'up-1',
+      start_date: '2026-09-01',
+      end_date: '2026-09-05'
+    };
+    assert(getHackathonLifecycle(upcomingEvent, now) === 'upcoming', 'Must be marked as upcoming');
+    assert(getMarkerStatus(upcomingEvent) === 'open', 'Marker status must be open');
+
+    // Ended event
+    const endedEvent = {
+      ...liveEvent,
+      id: 'end-1',
+      start_date: '2026-08-01',
+      end_date: '2026-08-05'
+    };
+    assert(getHackathonLifecycle(endedEvent, now) === 'ended', 'Must be marked as ended');
+    assert(getMarkerStatus(endedEvent) === 'closed', 'Marker status must be closed');
+
+    console.log('  ✓ Verified: Lifecycle accurately classifies live, upcoming, and ended events');
+  }
+
+  // ─── [TEST 12] Centralized Marker Eligibility ───────────────────
+  console.log('\n[Test 12] Physical Marker Eligibility:');
+  {
+    const { isMarkerEligible } = await import('../lib/map-utils');
+
+    assert(!isMarkerEligible({
+      id: '1', title: 'Online', description: '', start_date: '', end_date: '',
+      is_online: true, latitude: 20.5937, longitude: 78.9629, tags: [], register_url: '', organizer: '', status: 'approved'
+    }), 'Online event cannot have physical marker');
+
+    assert(!isMarkerEligible({
+      id: '2', title: 'Null Island', description: '', start_date: '', end_date: '',
+      is_online: false, latitude: 0, longitude: 0, tags: [], register_url: '', organizer: '', status: 'approved'
+    }), 'Null Island coordinates cannot have physical marker');
+
+    assert(!isMarkerEligible({
+      id: '3', title: 'Missing Coords', description: '', start_date: '', end_date: '',
+      is_online: false, latitude: null, longitude: null, tags: [], register_url: '', organizer: '', status: 'approved'
+    }), 'Missing coordinates cannot have physical marker');
+
+    assert(isMarkerEligible({
+      id: '4', title: 'IIT Bombay', description: '', start_date: '', end_date: '',
+      is_online: false, latitude: 19.1334, longitude: 72.9133, tags: [], register_url: '', organizer: '', status: 'approved'
+    }), 'Valid offline event with coordinates is marker eligible');
+
+    console.log('  ✓ Verified: isMarkerEligible strictly validates physical event marker eligibility');
+  }
+
   console.log('\n====================================================');
   console.log('LOCATION INTELLIGENCE SUITE: ALL TESTS PASSED (100% GREEN)');
   console.log('====================================================');

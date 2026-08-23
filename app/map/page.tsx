@@ -14,6 +14,7 @@ import {
   MapHackathon,
   clusterHackathons,
   getMarkerStatus,
+  isMarkerEligible,
   MARKER_COLORS,
   MARKER_GLOW,
   getDaysLeft
@@ -216,7 +217,8 @@ function DiscoveryPlatformContent() {
     total: filteredHackathons.length,
     closingToday: filteredHackathons.filter(h => getDaysLeft(h.registration_deadline) <= 5 && getDaysLeft(h.registration_deadline) >= 0).length,
     online: filteredHackathons.filter(h => h.is_online).length,
-    featured: filteredHackathons.filter(h => h.is_featured || h.is_verified).length
+    featured: filteredHackathons.filter(h => h.is_featured || h.is_verified).length,
+    live: filteredHackathons.filter(h => getMarkerStatus(h) === 'live').length
   }), [filteredHackathons]);
 
   // Marker Clustering
@@ -228,7 +230,7 @@ function DiscoveryPlatformContent() {
   useEffect(() => {
     if (L && mapRef.current && filteredHackathons.length > 0) {
       const validCoords = filteredHackathons
-        .filter(h => !h.is_online && h.latitude !== null && h.longitude !== null && !isNaN(Number(h.latitude)) && !isNaN(Number(h.longitude)))
+        .filter(isMarkerEligible)
         .map(h => [Number(h.latitude), Number(h.longitude)] as [number, number]);
 
       if (validCoords.length > 0) {
@@ -300,9 +302,10 @@ function DiscoveryPlatformContent() {
     if (!L) return undefined;
     const isSelected = selectedHackathon?.id === hackathon.id;
     const status = getMarkerStatus(hackathon);
+    const isLive = status === 'live';
     const color = MARKER_COLORS[status];
     const glow = MARKER_GLOW[status];
-    const size = isSelected ? 24 : 18;
+    const size = isSelected ? 24 : isLive ? 20 : 18;
 
     const html = `
       <div style="
@@ -310,17 +313,33 @@ function DiscoveryPlatformContent() {
         border-radius: 50%;
         background: ${color};
         border: 2px solid rgba(255, 255, 255, 0.95);
-        box-shadow: 0 0 ${isSelected ? '24px' : '12px'} ${glow}, 0 0 0 ${isSelected ? '6px' : '3px'} ${color}44;
+        box-shadow: 0 0 ${isSelected || isLive ? '24px' : '12px'} ${glow}, 0 0 0 ${isSelected ? '6px' : isLive ? '4px' : '3px'} ${color}44;
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         position: relative;
       ">
-        ${isSelected ? `<div style="
+        ${isLive ? `<div style="
+          position: absolute; inset: -10px;
+          border-radius: 50%;
+          border: 2px solid #EF4444;
+          animation: ping 1.5s cubic-bezier(0,0,0.2,1) infinite;
+          opacity: 0.85;
+          pointer-events: none;
+        "></div>
+        <div style="
+          position: absolute; inset: -16px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.18);
+          animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;
+          pointer-events: none;
+        "></div>` : ''}
+        ${isSelected && !isLive ? `<div style="
           position: absolute; inset: -8px;
           border-radius: 50%;
           border: 2px solid ${color};
           animation: ping 1.2s cubic-bezier(0,0,0.2,1) infinite;
           opacity: 0.7;
+          pointer-events: none;
         "></div>` : ''}
       </div>
     `;

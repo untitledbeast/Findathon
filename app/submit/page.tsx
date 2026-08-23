@@ -9,6 +9,8 @@ import HackathonCard from '@/components/HackathonCard';
 import { useAuth } from '@/lib/auth-context';
 import { transportClient } from '@/lib/transport/http-client';
 import { HackathonDTO } from '@/types';
+import PlaceAutocomplete from '@/components/PlaceAutocomplete';
+import { PlaceSuggestion } from '@/app/api/v1/places/autocomplete/route';
 import {
   Check,
   ArrowRight,
@@ -58,6 +60,7 @@ export default function SubmissionWizardPage() {
   const [mode, setMode] = useState<'online' | 'offline' | 'hybrid'>('online');
   const [city, setCity] = useState('');
   const [venue, setVenue] = useState('');
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
   const [prizePool, setPrizePool] = useState('$10,000');
 
   // Step 3
@@ -149,8 +152,11 @@ export default function SubmissionWizardPage() {
           endDate: finalEndDate,
           isOnline: mode === 'online',
           mode,
-          locationCity: mode === 'online' ? undefined : (city.trim() || undefined),
-          locationCollege: mode === 'online' ? undefined : (venue.trim() || undefined),
+          locationCity: mode === 'online' ? undefined : (selectedPlace?.city || city.trim() || undefined),
+          locationCollege: mode === 'online' ? undefined : (selectedPlace?.venue || selectedPlace?.title || venue.trim() || undefined),
+          fullAddress: mode === 'online' ? undefined : (selectedPlace?.formattedAddress || undefined),
+          latitude: mode === 'online' ? null : (selectedPlace?.latitude || null),
+          longitude: mode === 'online' ? null : (selectedPlace?.longitude || null),
           prizePool: prizePool.trim() || undefined,
           minTeamSize: minTeam,
           maxTeamSize: maxTeam,
@@ -421,27 +427,26 @@ export default function SubmissionWizardPage() {
               </div>
 
               {mode !== 'online' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">City</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Bangalore"
-                      className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5">Venue / College</label>
-                    <input
-                      type="text"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="e.g. IIT Bombay"
-                      className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm"
-                    />
-                  </div>
+                <div className="pt-2">
+                  <PlaceAutocomplete
+                    selectedPlace={selectedPlace}
+                    onSelect={(place) => {
+                      setSelectedPlace(place);
+                      setCity(place.city);
+                      setVenue(place.venue || place.title);
+                    }}
+                    onClear={() => {
+                      setSelectedPlace(null);
+                      setCity('');
+                      setVenue('');
+                    }}
+                    fallbackCity={city}
+                    fallbackVenue={venue}
+                    onManualChange={(newCity, newVenue) => {
+                      setCity(newCity);
+                      setVenue(newVenue);
+                    }}
+                  />
                 </div>
               )}
 

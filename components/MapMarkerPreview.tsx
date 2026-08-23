@@ -17,6 +17,7 @@ export default function MapMarkerPreview({ hackathon, x, y, visible }: MapMarker
   const statusColor = MARKER_COLORS[status];
 
   const statusLabels: Record<string, string> = {
+    live: 'Live Now 🔴',
     open: 'Open for Registration',
     closing_soon: 'Closing Soon!',
     online: 'Online Event',

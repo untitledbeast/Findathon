@@ -10,6 +10,8 @@ export const submitHackathonSchema = z.object({
   locationCity: z.string().optional(),
   locationCollege: z.string().optional(),
   fullAddress: z.string().optional(),
+  latitude: z.number().min(-90).max(90).optional().or(z.null()),
+  longitude: z.number().min(-180).max(180).optional().or(z.null()),
   isOnline: z.boolean().default(false),
   mode: z.enum(['online', 'offline', 'hybrid']).default('offline'),
   tags: z.array(z.string()).min(1, 'Select at least 1 tag').max(5, 'Maximum 5 tags'),

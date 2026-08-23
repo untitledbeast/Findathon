@@ -81,6 +81,22 @@ export class LocationResolver {
 
     const { normalizedAddress, expectedPrecision } = normalizedResult;
 
+    // RULE 1 ENFORCEMENT: If only a bare city is provided without venue or address,
+    // do not guess city-center coordinates. Mark as UNRESOLVED.
+    if (expectedPrecision === 'city' && !params.venue && !params.address) {
+      return {
+        status: 'UNRESOLVED',
+        latitude: null,
+        longitude: null,
+        normalizedAddress,
+        precision: 'city',
+        source: null,
+        provider: null,
+        confidence: 0.45,
+        lastError: 'City-level location without specific venue/address cannot be plotted as physical map marker'
+      };
+    }
+
     // 4. CACHE LOOKUP (Deduplication across identical venues/cities)
     try {
       const cached = await this.cache.get(normalizedAddress);

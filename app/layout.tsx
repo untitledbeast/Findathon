@@ -24,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full dark">
-      <body className="min-h-full flex flex-col bg-[#060816] text-[#F6F8FC] antialiased selection:bg-[#8B5CF6] selection:text-white">
+    <html lang="en" className="h-full dark" suppressHydrationWarning>
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-[#060816] text-[#F6F8FC] antialiased selection:bg-[#8B5CF6] selection:text-white">
         <AuthProvider>
           <AuthModalProvider>
             <AuroraBackground />
