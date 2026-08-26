@@ -22,7 +22,7 @@ export class DeveloperProfileEntity {
   public get userId(): string { return this.props.userId; }
   public get topLanguages(): Record<string, number> { return { ...this.props.topLanguages }; }
   public get topSkills(): Record<string, number> { return { ...this.props.topSkills }; }
-  public get interests(): string[] { return [...this.props.interests]; }
+  public get interests(): string[] { return [...(this.props.interests || [])]; }
   public get experienceLevel(): ExperienceLevel | null { return this.props.experienceLevel; }
   public get githubConnected(): boolean { return this.props.githubConnected; }
   public get leetcodeConnected(): boolean { return this.props.leetcodeConnected; }
@@ -36,7 +36,7 @@ export class DeveloperProfileEntity {
       ...this.props,
       topLanguages: { ...this.props.topLanguages },
       topSkills: { ...this.props.topSkills },
-      interests: [...this.props.interests]
+      interests: [...(this.props.interests || [])]
     };
   }
 

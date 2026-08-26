@@ -1,3 +1,4 @@
+/* eslint-disable */
 import {
   AddressNormalizer,
   LocationValidator,
@@ -294,7 +295,7 @@ async function runLocationIntelligenceTests() {
       longitude: 72.8777
     };
     assert(getHackathonLifecycle(liveEvent, now) === 'live', 'Must be marked as live');
-    assert(getMarkerStatus(liveEvent) === 'live', 'Marker status must be live');
+    assert(getMarkerStatus(liveEvent, now) === 'live', 'Marker status must be live');
 
     // Upcoming event
     const upcomingEvent = {
@@ -304,7 +305,7 @@ async function runLocationIntelligenceTests() {
       end_date: '2026-09-05'
     };
     assert(getHackathonLifecycle(upcomingEvent, now) === 'upcoming', 'Must be marked as upcoming');
-    assert(getMarkerStatus(upcomingEvent) === 'open', 'Marker status must be open');
+    assert(getMarkerStatus(upcomingEvent, now) === 'open', 'Marker status must be open');
 
     // Ended event
     const endedEvent = {
@@ -314,7 +315,7 @@ async function runLocationIntelligenceTests() {
       end_date: '2026-08-05'
     };
     assert(getHackathonLifecycle(endedEvent, now) === 'ended', 'Must be marked as ended');
-    assert(getMarkerStatus(endedEvent) === 'closed', 'Marker status must be closed');
+    assert(getMarkerStatus(endedEvent, now) === 'closed', 'Marker status must be closed');
 
     console.log('  ✓ Verified: Lifecycle accurately classifies live, upcoming, and ended events');
   }

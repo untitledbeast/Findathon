@@ -55,13 +55,12 @@ export type MarkerSemanticStatus = 'live' | 'open' | 'closing_soon' | 'online' |
 /**
  * Derives the visual marker semantic status.
  */
-export function getMarkerStatus(hackathon: MapHackathon): MarkerSemanticStatus {
-  const lifecycle = getHackathonLifecycle(hackathon);
+export function getMarkerStatus(hackathon: MapHackathon, now = new Date()): MarkerSemanticStatus {
+  const lifecycle = getHackathonLifecycle(hackathon, now);
   if (lifecycle === 'live') return 'live';
   if (hackathon.is_featured) return 'featured';
   if (hackathon.is_online) return 'online';
 
-  const now = new Date();
   const deadline = hackathon.registration_deadline
     ? new Date(hackathon.registration_deadline)
     : new Date(hackathon.start_date);

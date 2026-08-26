@@ -290,8 +290,14 @@ export class HackathonMatchEngine {
       (dsaScore * this.WEIGHTS.DSA) +
       (actionabilityScore * this.WEIGHTS.ACTIONABILITY);
 
-    // If developer has zero evidence, cap rawScore gracefully
-    if (developer.evidenceCount === 0) {
+    // If developer has zero technical evidence (e.g. no providers or LinkedIn-only), cap rawScore gracefully
+    const hasTechnicalEvidence =
+      Object.keys(developer.languages).length > 0 ||
+      Object.keys(developer.frameworks).length > 0 ||
+      developer.dsaIndex > 0 ||
+      developer.sources.some(s => s === 'github' || s === 'leetcode');
+
+    if (!hasTechnicalEvidence) {
       rawScore = Math.min(0.40, rawScore);
     }
 

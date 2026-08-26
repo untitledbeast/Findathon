@@ -19,10 +19,10 @@ export async function GET() {
     const res = NextResponse.json({
       success: true,
       data: {
-        hackathons: hackathonsCount || 2450,
-        users: usersCount || 1200000,
-        prizes: '$45M+',
-        cities: 150
+        hackathons: typeof hackathonsCount === 'number' ? hackathonsCount : 0,
+        users: typeof usersCount === 'number' ? usersCount : 0,
+        prizes: 'Verified',
+        cities: 0
       }
     });
 

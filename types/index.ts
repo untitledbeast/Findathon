@@ -64,8 +64,167 @@ export interface ProfileDTO {
   socialInstagram: string | null;
   socialDiscord: string | null;
   role: UserRole;
+  discoverableForTeams?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type TeamStatus = 'forming' | 'active' | 'locked' | 'submitted' | 'completed' | 'archived';
+export type TeamVisibility = 'public' | 'private';
+export type TeamMemberRole = 'owner' | 'lead' | 'member';
+export type TeamMemberStatus = 'active' | 'inactive' | 'left' | 'removed';
+export type TeamInvitationStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
+
+export interface TeamMemberDTO {
+  id: string;
+  teamId: string;
+  userId: string;
+  role: TeamMemberRole;
+  membershipStatus: TeamMemberStatus;
+  joinedAt: string;
+  updatedAt: string;
+  profile?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+    technicalLevel?: string | null;
+    topLanguages?: string[];
+  };
+}
+
+export interface TeamDTO {
+  id: string;
+  hackathonId: string;
+  ownerUserId: string;
+  name: string;
+  description: string | null;
+  status: TeamStatus;
+  visibility: TeamVisibility;
+  maxMembers: number;
+  memberCount: number;
+  members?: TeamMemberDTO[];
+  hackathon?: {
+    id: string;
+    title: string;
+    slug: string;
+    coverImageUrl: string | null;
+    startDate: string;
+    endDate: string;
+    minTeamSize: number;
+    maxTeamSize: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamInvitationDTO {
+  id: string;
+  teamId: string;
+  inviterUserId: string;
+  inviteeUserId: string;
+  status: TeamInvitationStatus;
+  message: string | null;
+  expiresAt: string;
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  team?: TeamDTO;
+  inviter?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  };
+  invitee?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+export interface TeamCoverageItemDTO {
+  skillId: string;
+  displayLabel: string;
+  category: string;
+  proficiency: number;
+  coverageLevel: 'strong' | 'partial' | 'missing';
+  coveredByUsers: string[];
+}
+
+export interface TeamGapDTO {
+  skillId: string;
+  displayLabel: string;
+  category: string;
+  severity: 'critical' | 'important' | 'optional';
+  reason: string;
+}
+
+export interface TeamCompatibilityResultDTO {
+  teamFitScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  confidenceScore: number;
+  requiredCoverageScore: number;
+  preferredCoverageScore: number;
+  roleCoverageScore: number;
+  complementarityScore: number;
+  redundancyPenalty: number;
+  coveredSkills: TeamCoverageItemDTO[];
+  criticalGaps: TeamGapDTO[];
+  importantGaps: TeamGapDTO[];
+  optionalGaps: TeamGapDTO[];
+  explanationCodes: string[];
+  roleBreakdown: {
+    frontend: number;
+    backend: number;
+    aiMl: number;
+    data: number;
+    devops: number;
+  };
+}
+
+export type ConnectionStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
+
+export interface ConnectionDTO {
+  id: string;
+  userLowId: string;
+  userHighId: string;
+  initiatorUserId: string;
+  status: ConnectionStatus;
+  createdAt: string;
+  updatedAt: string;
+  respondedAt: string | null;
+  partner?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+    bio?: string | null;
+  };
+}
+
+export interface UserBlockDTO {
+  id: string;
+  blockerUserId: string;
+  blockedUserId: string;
+  createdAt: string;
+  blockedUser?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+export interface TeammateCandidateDTO {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  contributionScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  technicalLevel: string;
+  addsSkills: string[];
+  fillsGaps: string[];
+  reasons: string[];
+  connectionState: 'none' | 'pending_sent' | 'pending_received' | 'accepted';
+  invitationState: 'none' | 'pending' | 'accepted' | 'not_allowed';
+  hasPendingInvite?: boolean;
 }
 
 export interface UserDTO {
@@ -215,6 +374,7 @@ export interface ProfileDatabaseRow {
   social_instagram?: string | null;
   social_discord?: string | null;
   role?: string | null;
+  discoverable_for_teams?: boolean | null;
   created_at?: string | null;
   updated_at?: string | null;
 }

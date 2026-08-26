@@ -18,6 +18,7 @@ export class ProfileMapper {
       socialInstagram: row.social_instagram || null,
       socialDiscord: row.social_discord || null,
       role,
+      discoverableForTeams: Boolean(row.discoverable_for_teams ?? false),
       createdAt: row.created_at || new Date().toISOString(),
       updatedAt: row.updated_at || new Date().toISOString()
     };
@@ -36,6 +37,7 @@ export class ProfileMapper {
     if (dto.socialInstagram !== undefined) row.social_instagram = dto.socialInstagram;
     if (dto.socialDiscord !== undefined) row.social_discord = dto.socialDiscord;
     if (dto.role !== undefined) row.role = dto.role;
+    if (dto.discoverableForTeams !== undefined) row.discoverable_for_teams = dto.discoverableForTeams;
     row.updated_at = new Date().toISOString();
     return row;
   }

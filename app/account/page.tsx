@@ -814,6 +814,39 @@ export default function AccountDashboardPage({
                     ))}
                   </div>
                 </div>
+
+                <div className="pt-6 border-t border-slate-800">
+                  <h4 className="font-bold text-sm text-white mb-2 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>Findathon TeamSpace & Teammate Discovery</span>
+                  </h4>
+                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                    Allow Findathon Team Intelligence to suggest your profile to other hackathon builders looking for your technical stack.
+                  </p>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(profile?.discoverable_for_teams)}
+                      onChange={async (e) => {
+                        const val = e.target.checked;
+                        try {
+                          await fetch('/api/v1/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ discoverableForTeams: val })
+                          });
+                          refreshProfile();
+                        } catch {
+                          // Handled
+                        }
+                      }}
+                      className="w-4 h-4 rounded text-purple-600 bg-slate-900 border-slate-700 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-slate-300 font-medium">
+                      Opt-in to Teammate Discovery suggestions (Default: Private)
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div className="glass-card rounded-2xl border border-red-900/40 p-6">

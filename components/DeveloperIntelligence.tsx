@@ -775,6 +775,16 @@ export default function DeveloperIntelligence() {
               </div>
             </div>
 
+            {/* LinkedIn-only Guidance Banner */}
+            {profile?.linkedinConnected && !profile?.githubConnected && !profile?.leetcodeConnected && (
+              <div className="p-3.5 rounded-2xl bg-blue-950/40 border border-blue-500/30 text-xs text-blue-200 flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
+                <span>
+                  <strong>Professional identity verified.</strong> Connect your GitHub or LeetCode account for verified technical skills and personalized hackathon recommendations.
+                </span>
+              </div>
+            )}
+
             {/* Privacy Note */}
             <p className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
               <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />

@@ -21,6 +21,8 @@ export class PermissionError extends BaseError {
   }
 }
 
+export class AuthorizationError extends PermissionError {}
+
 export class NotFoundError extends BaseError {
   constructor(message = 'Resource not found') {
     super(message, ERROR_CODES.NOT_FOUND, 404);

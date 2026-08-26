@@ -40,10 +40,10 @@ export function useHomepageData() {
     try {
       const [statsRes, featuredRes, tagsRes] = await Promise.all([
         transportClient<HomepageStats>('/api/v1/stats').catch(() => ({
-          hackathons: 2450,
-          users: 1200000,
-          prizes: '$45M+',
-          cities: 150
+          hackathons: 0,
+          users: 0,
+          prizes: '',
+          cities: 0
         })),
         hackathonsApi.search({ limit: 8 }).then(r => r?.hackathons || (Array.isArray(r) ? r : [])).catch(() => []),
         transportClient<TrendingTag[]>('/api/v1/tags/trending').catch(() => [])

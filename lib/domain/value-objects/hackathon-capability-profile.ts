@@ -35,24 +35,24 @@ export class HackathonCapabilityProfile {
   public get slug(): string { return this.props.slug; }
   public get description(): string { return this.props.description; }
   public get tagline(): string | null { return this.props.tagline; }
-  public get requiredLanguages(): string[] { return [...this.props.requiredLanguages]; }
-  public get preferredLanguages(): string[] { return [...this.props.preferredLanguages]; }
-  public get frameworks(): string[] { return [...this.props.frameworks]; }
-  public get domains(): string[] { return [...this.props.domains]; }
-  public get skills(): string[] { return [...this.props.skills]; }
-  public get difficulty(): 'beginner' | 'intermediate' | 'advanced' | 'open' { return this.props.difficulty; }
-  public get isOnline(): boolean { return this.props.isOnline; }
-  public get locationCity(): string | null { return this.props.locationCity; }
-  public get locationCollege(): string | null { return this.props.locationCollege; }
-  public get registrationDeadline(): Date | null { return this.props.registrationDeadline; }
-  public get eventStart(): Date { return this.props.eventStart; }
-  public get eventEnd(): Date { return this.props.eventEnd; }
-  public get status(): string { return this.props.status; }
-  public get isVerified(): boolean { return this.props.isVerified; }
-  public get isFeatured(): boolean { return this.props.isFeatured; }
-  public get prizeAmount(): number { return this.props.prizeAmount; }
-  public get dataQuality(): 'high' | 'medium' | 'low' { return this.props.dataQuality; }
-  public get rawTags(): string[] { return [...this.props.rawTags]; }
+  public get requiredLanguages(): string[] { return [...(this.props.requiredLanguages || [])]; }
+  public get preferredLanguages(): string[] { return [...(this.props.preferredLanguages || [])]; }
+  public get frameworks(): string[] { return [...(this.props.frameworks || [])]; }
+  public get domains(): string[] { return [...(this.props.domains || [])]; }
+  public get skills(): string[] { return [...(this.props.skills || [])]; }
+  public get difficulty(): 'beginner' | 'intermediate' | 'advanced' | 'open' { return this.props.difficulty || 'open'; }
+  public get isOnline(): boolean { return this.props.isOnline ?? true; }
+  public get locationCity(): string | null { return this.props.locationCity || null; }
+  public get locationCollege(): string | null { return this.props.locationCollege || null; }
+  public get registrationDeadline(): Date | null { return this.props.registrationDeadline || null; }
+  public get eventStart(): Date { return this.props.eventStart || new Date(); }
+  public get eventEnd(): Date { return this.props.eventEnd || new Date(); }
+  public get status(): string { return this.props.status || 'approved'; }
+  public get isVerified(): boolean { return this.props.isVerified ?? true; }
+  public get isFeatured(): boolean { return this.props.isFeatured ?? false; }
+  public get prizeAmount(): number { return this.props.prizeAmount || 0; }
+  public get dataQuality(): 'high' | 'medium' | 'low' { return this.props.dataQuality || 'high'; }
+  public get rawTags(): string[] { return [...(this.props.rawTags || [])]; }
 
   /**
    * Normalizes raw hackathon data (from Entity or DTO) into structured capability requirements.

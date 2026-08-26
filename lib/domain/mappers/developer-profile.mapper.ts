@@ -121,7 +121,7 @@ export class DeveloperProfileMapper {
       externalId: row.external_id || null,
       url: row.url || null,
       signals: row.signals || {},
-      weight: Number(row.weight || 1),
+      weight: row.weight !== null && row.weight !== undefined ? Number(row.weight) : 1.0,
       createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
       updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now()
     });

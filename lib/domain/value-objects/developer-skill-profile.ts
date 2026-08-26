@@ -137,7 +137,8 @@ export class DeveloperSkillProfile {
 
       // 2. Calculate effective weight (LeetCode normalized to 70% of GitHub weight)
       const sourceScale = evidence.source === 'leetcode' ? 0.7 : 1.0;
-      const effectiveWeight = (evidence.weight || 1.0) * recencyFactor * sourceScale;
+      const rawWeight = typeof evidence.weight === 'number' ? evidence.weight : 1.0;
+      const effectiveWeight = rawWeight * recencyFactor * sourceScale;
       totalComputedWeight += effectiveWeight;
 
       const signals = evidence.signals || {};

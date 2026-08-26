@@ -40,8 +40,8 @@ export class DeveloperCapabilityProfile {
   public get confidence(): 'high' | 'medium' | 'low' { return this.props.confidence; }
   public get confidenceScore(): number { return this.props.confidenceScore; }
   public get evidenceCount(): number { return this.props.evidenceCount; }
-  public get sources(): SkillEvidenceSource[] { return [...this.props.sources]; }
-  public get interests(): string[] { return [...this.props.interests]; }
+  public get sources(): SkillEvidenceSource[] { return [...(this.props.sources || [])]; }
+  public get interests(): string[] { return [...(this.props.interests || [])]; }
   public get taxonomyVersion(): string { return this.props.taxonomyVersion; }
   public get scoringVersion(): string { return this.props.scoringVersion; }
   public get lastVerifiedAt(): number { return this.props.lastVerifiedAt; }
@@ -80,10 +80,39 @@ export class DeveloperCapabilityProfile {
       else if (ageDays < 365) freshness = 0.5;
 
       const sourceScale = evidence.source === 'leetcode' ? 0.7 : 1.0;
-      const effectiveWeight = (evidence.weight || 1.0) * freshness * sourceScale;
+      const rawWeight = typeof evidence.weight === 'number' ? evidence.weight : 1.0;
+      const effectiveWeight = rawWeight * freshness * sourceScale;
       totalEvidenceWeight += effectiveWeight;
 
       const signals = evidence.signals || {};
+      const directSkillId = (typeof signals.skillId === 'string' ? signals.skillId : '') ||
+        (typeof signals.skill === 'string' ? signals.skill : '') ||
+        (typeof (evidence as unknown as { skillId?: string }).skillId === 'string' ? (evidence as unknown as { skillId?: string }).skillId : '');
+
+      // Direct skillId mapping for stored technical skill evidence
+      if (directSkillId && evidence.source !== 'linkedin') {
+        const canonical = SkillNormalizer.normalize(directSkillId);
+        if (canonical) {
+          if (canonical.category === 'language') {
+            languages[canonical.id] = (languages[canonical.id] || 0) + effectiveWeight;
+            if (canonical.parentDomain) {
+              domains[canonical.parentDomain] = (domains[canonical.parentDomain] || 0) + (effectiveWeight * 0.6);
+            }
+          } else if (canonical.category === 'framework') {
+            frameworks[canonical.id] = (frameworks[canonical.id] || 0) + effectiveWeight;
+            if (canonical.parentDomain) {
+              domains[canonical.parentDomain] = (domains[canonical.parentDomain] || 0) + (effectiveWeight * 0.7);
+            }
+          } else if (canonical.category === 'domain') {
+            domains[canonical.id] = (domains[canonical.id] || 0) + effectiveWeight;
+          } else if (canonical.category === 'skill' || canonical.category === 'database' || canonical.category === 'cloud_devops') {
+            skills[canonical.id] = (skills[canonical.id] || 0) + effectiveWeight;
+            if (canonical.parentDomain) {
+              domains[canonical.parentDomain] = (domains[canonical.parentDomain] || 0) + (effectiveWeight * 0.5);
+            }
+          }
+        }
+      }
 
       // Process GitHub Repo Evidence
       if (evidence.source === 'github') {
@@ -219,14 +248,15 @@ export class DeveloperCapabilityProfile {
     // Implementation Index (GitHub repo volume & languages)
     const implementationIndex = Math.min(1.0, Math.round((Math.log10(githubRepoCount + 1) / 1.5) * 100) / 100);
 
-    // Confidence Calculation (Evidence depth + source diversity)
-    const sourceCount = sourcesSet.size;
+    // Confidence Calculation (Evidence depth + source diversity across technical sources)
+    const technicalSources = Array.from(sourcesSet).filter(s => s === 'github' || s === 'leetcode');
+    const technicalEvidenceCount = evidenceList.filter(e => e.source === 'github' || e.source === 'leetcode').length;
     let confidenceScore = 0;
-    if (evidenceList.length === 0) {
+    if (technicalEvidenceCount === 0 || totalEvidenceWeight === 0) {
       confidenceScore = 0;
     } else {
-      const volumeFactor = Math.min(0.5, evidenceList.length / 20); // Up to 0.5 for 10+ signals
-      const diversityFactor = sourceCount >= 2 ? 0.35 : 0.20;       // Multi-source bonus
+      const volumeFactor = Math.min(0.5, technicalEvidenceCount / 20); // Up to 0.5 for 10+ technical signals
+      const diversityFactor = technicalSources.length >= 2 ? 0.35 : 0.20;       // Multi-source technical bonus
       const weightFactor = Math.min(0.15, totalEvidenceWeight / 50); // Weight factor
       confidenceScore = Math.min(1.0, Math.round((volumeFactor + diversityFactor + weightFactor) * 100) / 100);
     }
@@ -276,8 +306,8 @@ export class DeveloperCapabilityProfile {
       languages: { ...this.props.languages },
       frameworks: { ...this.props.frameworks },
       domains: { ...this.props.domains },
-      sources: [...this.props.sources],
-      interests: [...this.props.interests]
+      sources: [...(this.props.sources || [])],
+      interests: [...(this.props.interests || [])]
     };
   }
 }

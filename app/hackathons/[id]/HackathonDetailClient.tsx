@@ -470,6 +470,15 @@ export default function HackathonDetailClient({ params }: { params: Promise<{ id
                 <ExternalLink className="w-4 h-4" />
               </a>
 
+              {/* FIND TEAMMATES CTA */}
+              <Link
+                href={`/teamspace/discover?hackathon=${hackathon.id}`}
+                className="w-full py-3.5 px-6 rounded-2xl bg-[#0D1224] hover:bg-purple-950/50 border border-purple-500/40 text-purple-200 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+              >
+                <Users className="w-4 h-4 text-purple-400" />
+                <span>Find Teammates & Team Intelligence</span>
+              </Link>
+
               {/* ACTION BUTTONS GRID */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button

@@ -23,6 +23,8 @@ export interface UserProfile {
   xp_points: number | null;
   created_at: string | null;
   updated_at: string | null;
+  discoverable_for_teams?: boolean | null;
+  discoverableForTeams?: boolean | null;
   // Virtual field — from auth.users, not profiles table
   email?: string | null;
 }

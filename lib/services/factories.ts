@@ -4,6 +4,9 @@ import { SupabaseBookmarkRepository } from '../repositories/supabase-bookmark.re
 import { SupabaseProfileRepository } from '../repositories/supabase-profile.repository';
 import { SupabaseNotificationRepository } from '../repositories/supabase-notification.repository';
 import { SupabaseDeveloperProfileRepository } from '../repositories/supabase-developer-profile.repository';
+import { SupabaseTeamRepository } from '../repositories/supabase-team.repository';
+import { SupabaseConnectionRepository } from '../repositories/supabase-connection.repository';
+import { SupabaseUserBlockRepository } from '../repositories/supabase-user-block.repository';
 import { GitHubProvider } from '../providers/github.provider';
 import { LeetCodeProvider } from '../providers/leetcode.provider';
 import { LinkedInProvider } from '../providers/linkedin.provider';
@@ -21,6 +24,10 @@ import { SearchQueryService } from './search.service';
 import { DeveloperProfileQueryService } from './developer-profile-query.service';
 import { DeveloperProfileCommandService } from './developer-profile-command.service';
 import { HackathonRecommendationService } from './hackathon-recommendation.service';
+import { TeamCommandService } from './team-command.service';
+import { TeamQueryService } from './team-query.service';
+import { ConnectionCommandService } from './connection-command.service';
+import { ConnectionQueryService } from './connection-query.service';
 
 export function createHackathonRepository() {
   return new SupabaseHackathonRepository();
@@ -72,6 +79,14 @@ export function createSearchProvider() {
 
 export function createStorageProvider() {
   return new SupabaseStorageProvider();
+}
+
+export function createConnectionRepository() {
+  return new SupabaseConnectionRepository();
+}
+
+export function createUserBlockRepository() {
+  return new SupabaseUserBlockRepository();
 }
 
 // CQRS Services Composition Root
@@ -126,6 +141,48 @@ export function createDeveloperProfileCommandService() {
 
 export function createHackathonRecommendationService() {
   return new HackathonRecommendationService(createDeveloperProfileRepository());
+}
+
+export function createTeamRepository() {
+  return new SupabaseTeamRepository();
+}
+
+export function createTeamCommandService() {
+  return new TeamCommandService(
+    createTeamRepository(),
+    createHackathonRepository(),
+    createProfileRepository(),
+    createNotificationRepository(),
+    createUserBlockRepository()
+  );
+}
+
+export function createTeamQueryService() {
+  return new TeamQueryService(
+    createTeamRepository(),
+    createHackathonRepository(),
+    createDeveloperProfileRepository(),
+    createProfileRepository(),
+    createConnectionRepository(),
+    createUserBlockRepository()
+  );
+}
+
+export function createConnectionCommandService() {
+  return new ConnectionCommandService(
+    createConnectionRepository(),
+    createUserBlockRepository(),
+    createProfileRepository(),
+    createNotificationRepository()
+  );
+}
+
+export function createConnectionQueryService() {
+  return new ConnectionQueryService(
+    createConnectionRepository(),
+    createUserBlockRepository(),
+    createProfileRepository()
+  );
 }
 
 

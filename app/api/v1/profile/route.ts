@@ -15,6 +15,7 @@ const updateProfileSchema = z.object({
   socialLinkedin: z.string().url().optional().or(z.literal('')),
   socialInstagram: z.string().optional(),
   socialDiscord: z.string().optional(),
+  discoverableForTeams: z.boolean().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
       socialLinkedin: data.social_linkedin,
       socialInstagram: data.social_instagram,
       socialDiscord: data.social_discord,
+      discoverableForTeams: data.discoverable_for_teams ?? false,
       xpPoints: data.xp_points || 0,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -88,7 +90,7 @@ export async function PATCH(req: NextRequest) {
       }
     );
 
-    const updateData: Record<string, string> = {};
+    const updateData: Record<string, string | boolean> = {};
     if (parsed.fullName !== undefined) updateData.full_name = parsed.fullName;
     if (parsed.bio !== undefined) updateData.bio = parsed.bio;
     if (parsed.organization !== undefined) updateData.organization = parsed.organization;
@@ -98,6 +100,7 @@ export async function PATCH(req: NextRequest) {
     if (parsed.socialLinkedin !== undefined) updateData.social_linkedin = parsed.socialLinkedin;
     if (parsed.socialInstagram !== undefined) updateData.social_instagram = parsed.socialInstagram;
     if (parsed.socialDiscord !== undefined) updateData.social_discord = parsed.socialDiscord;
+    if (parsed.discoverableForTeams !== undefined) updateData.discoverable_for_teams = parsed.discoverableForTeams;
 
     updateData.updated_at = new Date().toISOString();
 
@@ -126,6 +129,7 @@ export async function PATCH(req: NextRequest) {
       socialLinkedin: data.social_linkedin,
       socialInstagram: data.social_instagram,
       socialDiscord: data.social_discord,
+      discoverableForTeams: data.discoverable_for_teams ?? false,
       xpPoints: data.xp_points || 0,
       createdAt: data.created_at,
       updatedAt: data.updated_at,

@@ -93,6 +93,13 @@ export default function Navbar({ savedCount: _savedCount = 0, onOpenSaved: _onOp
             Categories
           </Link>
           <Link
+            href="/teamspace"
+            className={`transition-colors hover:text-white flex items-center gap-1 ${pathname?.startsWith('/teamspace') ? 'text-purple-300 font-bold' : 'text-slate-400 hover:text-white'}`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span>TeamSpace</span>
+          </Link>
+          <Link
             href="/map"
             className={`transition-colors hover:text-white flex items-center gap-1 ${pathname === '/map' ? 'text-cyan-400 font-bold' : 'text-purple-300 hover:text-white'}`}
           >
@@ -152,9 +159,17 @@ export default function Navbar({ savedCount: _savedCount = 0, onOpenSaved: _onOp
           <Link href="/categories" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-slate-200 py-1.5 hover:text-white">
             Categories
           </Link>
+          <Link href="/teamspace" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-purple-300 py-1.5 hover:text-white flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span>TeamSpace</span>
+          </Link>
+          <Link href="/map" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-cyan-300 py-1.5 hover:text-white flex items-center gap-1.5">
+            <span>Map</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          </Link>
           <button
             onClick={() => handleActionOrSignIn(() => { setMobileMenuOpen(false); router.push('/submit'); })}
-            className="w-full text-left block text-xs font-bold text-purple-300 py-1.5 hover:text-white"
+            className="w-full text-left block text-xs font-bold text-slate-200 py-1.5 hover:text-white"
           >
             Submit Hackathon
           </button>

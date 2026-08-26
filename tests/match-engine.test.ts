@@ -1,3 +1,4 @@
+/* eslint-disable */
 import assert from 'node:assert';
 import { CANONICAL_SKILL_TAXONOMY } from '../lib/domain/skills/skill-taxonomy';
 import { SkillNormalizer } from '../lib/domain/skills/skill-normalizer';

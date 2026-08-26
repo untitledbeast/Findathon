@@ -19,8 +19,8 @@ import { NextResponse } from 'next/server';
 import { formatError as baseFormatError } from '@/lib/errors';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function formatResponse(data: any) {
-  return NextResponse.json({ success: true, data, ...data?.meta });
+export function formatResponse(data: any, status = 200) {
+  return NextResponse.json({ success: true, data, ...data?.meta }, { status });
 }
 
 export function formatError(error: Error | BaseError) {

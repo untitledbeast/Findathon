@@ -103,7 +103,9 @@ export class HackathonRecommendationService {
       now
     );
 
-    const isPersonalized = Boolean(userId && evidenceList.length > 0);
+    const hasTechnicalEvidence = evidenceList.some(e => e.source === 'github' || e.source === 'leetcode');
+    const isPersonalized = Boolean(userId && hasTechnicalEvidence);
+    const hasOnlyLinkedIn = Boolean(userId && evidenceList.length > 0 && !hasTechnicalEvidence);
     
     // Check if evidence is older than 60 days
     const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
@@ -112,9 +114,12 @@ export class HackathonRecommendationService {
       developerProfileEntity?.lastComputedAt &&
       (now - developerProfileEntity.lastComputedAt) > SIXTY_DAYS_MS
     );
-    const staleMessage = isStale
-      ? 'Your recommendations may improve after syncing your GitHub or LeetCode account.'
-      : undefined;
+    let staleMessage: string | undefined = undefined;
+    if (hasOnlyLinkedIn) {
+      staleMessage = 'LinkedIn is connected. Connect GitHub or LeetCode for stronger technical recommendations.';
+    } else if (isStale) {
+      staleMessage = 'Your recommendations may improve after syncing your GitHub or LeetCode account.';
+    }
 
     // Fetch approved, upcoming hackathons
     const client = await this.getClient();
