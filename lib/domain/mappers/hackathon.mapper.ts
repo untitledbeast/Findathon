@@ -6,9 +6,9 @@ import { HackathonDetailDTO, ReviewDTO } from '../dtos/hackathon.dto';
 export class HackathonMapper {
   public static rowToDTO(row: HackathonDatabaseRow): HackathonDTO {
     const isOnline = Boolean(row.is_online);
-    const mode = (row.mode?.toLowerCase() as 'online' | 'offline' | 'hybrid') || (isOnline ? 'online' : 'offline');
+    const mode = ((row.location_mode || row.mode)?.toLowerCase() as 'online' | 'offline' | 'hybrid') || (isOnline ? 'online' : 'offline');
     const tags = Array.isArray(row.tags) ? row.tags : [];
-    const status = (row.status?.toLowerCase() as 'pending' | 'approved' | 'rejected' | 'archived') || 'pending';
+    const status = ((row.publication_status || row.status)?.toLowerCase() as 'pending' | 'approved' | 'rejected' | 'archived') || 'pending';
 
     return {
       id: row.id,
@@ -20,12 +20,12 @@ export class HackathonMapper {
       endDate: row.end_date || new Date().toISOString(),
       registrationDeadline: row.registration_deadline || null,
       locationCity: row.location_city || null,
-      locationCollege: row.location_college || null,
-      fullAddress: row.full_address || null,
+      locationCollege: row.location_college || row.venue_name || null,
+      fullAddress: row.location_address || row.full_address || null,
       isOnline,
       mode,
       tags,
-      registerUrl: row.register_url || '#',
+      registerUrl: row.register_url || row.registration_url || '#',
       organizer: row.organizer || 'Community Organizer',
       organization: row.organization || null,
       coverImageUrl: row.cover_image_url || null,
@@ -64,63 +64,64 @@ export class HackathonMapper {
     const row: Record<string, unknown> = {};
     if (dto.id !== undefined) row.id = dto.id;
     if (dto.title !== undefined) row.title = dto.title;
-    if (dto.tagline !== undefined) row.tagline = dto.tagline;
     if (dto.description !== undefined) row.description = dto.description;
     if (dto.startDate !== undefined) row.start_date = dto.startDate;
     if (dto.endDate !== undefined) row.end_date = dto.endDate;
-    if (dto.registrationDeadline !== undefined) row.registration_deadline = dto.registrationDeadline;
     if (dto.locationCity !== undefined) row.location_city = dto.locationCity;
-    if (dto.locationCollege !== undefined) row.location_college = dto.locationCollege;
-    if (dto.fullAddress !== undefined) row.full_address = dto.fullAddress;
+    if (dto.locationCollege !== undefined) {
+      row.location_college = dto.locationCollege;
+      row.venue_name = dto.locationCollege;
+    }
+    if (dto.fullAddress !== undefined) {
+      row.location_address = dto.fullAddress;
+    }
     if (dto.isOnline !== undefined) row.is_online = dto.isOnline;
-    if (dto.mode !== undefined) row.mode = dto.mode;
+    if (dto.mode !== undefined) {
+      row.location_mode = dto.mode;
+    }
     if (dto.tags !== undefined) row.tags = dto.tags;
-    if (dto.registerUrl !== undefined) row.register_url = dto.registerUrl;
+    if (dto.registerUrl !== undefined) {
+      row.register_url = dto.registerUrl;
+      row.registration_url = dto.registerUrl;
+    }
     if (dto.organizer !== undefined) row.organizer = dto.organizer;
-    if (dto.organization !== undefined) row.organization = dto.organization;
     if (dto.coverImageUrl !== undefined) row.cover_image_url = dto.coverImageUrl;
-    if (dto.status !== undefined) row.status = dto.status;
-    if (dto.minTeamSize !== undefined) row.min_team_size = dto.minTeamSize;
-    if (dto.maxTeamSize !== undefined) row.max_team_size = dto.maxTeamSize;
-    if (dto.soloAllowed !== undefined) row.solo_allowed = dto.soloAllowed;
-    if (dto.eligibility !== undefined) row.eligibility = dto.eligibility;
-    if (dto.prizePool !== undefined) row.prize_pool = dto.prizePool;
-    if (dto.registrationFee !== undefined) row.registration_fee = dto.registrationFee;
-    if (dto.contactName !== undefined) row.contact_name = dto.contactName;
+    if (dto.status !== undefined) {
+      row.status = dto.status;
+      row.publication_status = dto.status;
+    }
     if (dto.contactEmail !== undefined) row.contact_email = dto.contactEmail;
-    if (dto.contactPhone !== undefined) row.contact_phone = dto.contactPhone;
-    if (dto.socialTwitter !== undefined) row.social_twitter = dto.socialTwitter;
-    if (dto.socialLinkedin !== undefined) row.social_linkedin = dto.socialLinkedin;
-    if (dto.socialDiscord !== undefined) row.social_discord = dto.socialDiscord;
-    if (dto.socialInstagram !== undefined) row.social_instagram = dto.socialInstagram;
     if (dto.submittedBy !== undefined) row.submitted_by = dto.submittedBy;
     if (dto.viewCount !== undefined) row.view_count = dto.viewCount;
     if (dto.saveCount !== undefined) row.save_count = dto.saveCount;
-    if (dto.latitude !== undefined) row.latitude = dto.latitude;
-    if (dto.longitude !== undefined) row.longitude = dto.longitude;
-    if (dto.isVerified !== undefined) row.is_verified = dto.isVerified;
+    if (dto.latitude !== undefined && dto.longitude !== undefined) {
+      if (dto.latitude !== null && dto.longitude !== null) {
+        row.latitude = dto.latitude;
+        row.longitude = dto.longitude;
+        row.location_status = 'resolved';
+      } else {
+        row.latitude = null;
+        row.longitude = null;
+        row.location_status = dto.isOnline ? null : 'pending';
+      }
+    }
     if (dto.isFeatured !== undefined) row.is_featured = dto.isFeatured;
-    if (dto.difficulty !== undefined) row.difficulty = dto.difficulty;
-    if (dto.hasCertificate !== undefined) row.has_certificate = dto.hasCertificate;
-    if (dto.isHiring !== undefined) row.is_hiring = dto.isHiring;
 
-    // Filter against known columns supported in Postgres schema
+    // Filter against exact known columns physically existing in live Postgres schema
     const DB_COLUMNS = new Set([
-      'id', 'title', 'tagline', 'description', 'start_date', 'end_date',
-      'registration_deadline', 'location_city', 'location_college', 'full_address',
-      'is_online', 'mode', 'tags', 'register_url', 'organizer', 'organization',
-      'cover_image_url', 'status', 'prize_pool', 'registration_fee',
-      'min_team_size', 'max_team_size', 'solo_allowed', 'eligibility',
-      'contact_name', 'contact_email', 'contact_phone',
-      'social_twitter', 'social_linkedin', 'social_discord', 'social_instagram',
-      'created_at', 'updated_at', 'is_featured', 'featured_order',
-      'view_count', 'save_count', 'click_count', 'avg_rating',
-      'review_count', 'rejection_reason', 'reviewed_by', 'reviewed_at',
-      'submitted_by', 'latitude', 'longitude',
-      'location_status', 'location_precision', 'location_source',
-      'geocoder_provider', 'geocoder_confidence', 'normalized_address',
-      'geocoded_at', 'last_attempted_at', 'last_error',
-      'is_verified', 'difficulty', 'has_certificate', 'is_hiring'
+      'id', 'title', 'description', 'start_date', 'end_date',
+      'location_city', 'location_college', 'is_online', 'tags',
+      'register_url', 'registration_url', 'organizer', 'cover_image_url',
+      'status', 'publication_status', 'event_status', 'submitted_by',
+      'location_mode', 'venue_name', 'location_address', 'location_state',
+      'location_country', 'latitude', 'longitude', 'normalized_location_query',
+      'location_status', 'location_confidence', 'location_source',
+      'geocoding_provider', 'location_resolved_at', 'location_retry_count',
+      'location_next_retry_at', 'slug', 'source_type', 'submitted_at',
+      'published_at', 'contact_email', 'created_at', 'updated_at',
+      'is_featured', 'featured_order', 'view_count', 'save_count',
+      'click_count', 'avg_rating', 'review_count', 'rejection_reason',
+      'reviewed_by', 'reviewed_at'
     ]);
 
     const sanitized: Record<string, unknown> = {};
