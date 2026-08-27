@@ -26,6 +26,12 @@ import { DeveloperProfileCommandService } from './developer-profile-command.serv
 import { HackathonRecommendationService } from './hackathon-recommendation.service';
 import { TeamCommandService } from './team-command.service';
 import { TeamQueryService } from './team-query.service';
+import { SupabaseTeamProjectRepository } from '../repositories/supabase-team-project.repository';
+import { SupabaseTeamTaskRepository } from '../repositories/supabase-team-task.repository';
+import { TeamProjectCommandService } from './team-project-command.service';
+import { TeamProjectQueryService } from './team-project-query.service';
+import { TeamTaskCommandService } from './team-task-command.service';
+import { TeamTaskQueryService } from './team-task-query.service';
 import { ConnectionCommandService } from './connection-command.service';
 import { ConnectionQueryService } from './connection-query.service';
 
@@ -181,6 +187,48 @@ export function createConnectionQueryService() {
   return new ConnectionQueryService(
     createConnectionRepository(),
     createUserBlockRepository(),
+    createProfileRepository()
+  );
+}
+
+export function createTeamProjectRepository() {
+  return new SupabaseTeamProjectRepository();
+}
+
+export function createTeamTaskRepository() {
+  return new SupabaseTeamTaskRepository();
+}
+
+export function createTeamProjectCommandService() {
+  return new TeamProjectCommandService(
+    createTeamRepository(),
+    createTeamProjectRepository(),
+    createHackathonRepository()
+  );
+}
+
+export function createTeamProjectQueryService() {
+  return new TeamProjectQueryService(
+    createTeamRepository(),
+    createTeamProjectRepository()
+  );
+}
+
+export function createTeamTaskCommandService() {
+  return new TeamTaskCommandService(
+    createTeamRepository(),
+    createTeamProjectRepository(),
+    createTeamTaskRepository(),
+    createHackathonRepository(),
+    createNotificationRepository(),
+    createProfileRepository()
+  );
+}
+
+export function createTeamTaskQueryService() {
+  return new TeamTaskQueryService(
+    createTeamRepository(),
+    createTeamTaskRepository(),
     createProfileRepository()
   );
 }

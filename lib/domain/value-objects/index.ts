@@ -53,8 +53,13 @@ export class Url {
     const trimmed = value.trim();
     try {
       const parsed = new URL(trimmed);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
+      if (!['http:', 'https:'].includes(parsed.protocol.toLowerCase())) {
         throw new Error('Must be http or https');
+      }
+      // Prohibit dangerous hostnames
+      const host = parsed.hostname.toLowerCase();
+      if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+        throw new Error('Localhost URLs are not permitted');
       }
       this.value = parsed.toString();
     } catch {
@@ -72,7 +77,7 @@ export class Money {
   private readonly amount: number;
   private readonly currency: string;
 
-  constructor(amount: number, currency: string = 'USD') {
+  constructor(amount: number, currency: string = 'INR') {
     if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
       throw new ValidationError('Money amount must be a non-negative number');
     }
@@ -89,8 +94,8 @@ export class Money {
     return !!other && other.getAmount() === this.amount && other.getCurrency() === this.currency;
   }
   public toString(): string {
-    const symbol = this.currency === 'USD' ? '$' : this.currency === 'INR' ? '₹' : `${this.currency} `;
-    return `${symbol}${this.amount.toLocaleString()}`;
+    const symbol = this.currency === 'INR' ? '₹' : this.currency === 'USD' ? '$' : `${this.currency} `;
+    return `${symbol}${this.amount.toLocaleString('en-US')}`;
   }
   public toJSON(): { amount: number; currency: string } {
     return { amount: this.amount, currency: this.currency };
@@ -100,34 +105,58 @@ export class Money {
 export class PrizePool {
   private readonly formatted: string;
   private readonly numericAmount: number;
+  private readonly currency: string | null;
 
-  constructor(raw: string | number) {
-    if (typeof raw === 'number') {
+  constructor(raw: string | number | null | undefined, currency?: string | null, formattedOverride?: string) {
+    if (formattedOverride) {
+      this.formatted = formattedOverride.trim();
+      this.numericAmount = typeof raw === 'number' ? raw : (parseFloat(String(raw).replace(/[^0-9.]/g, '')) || 0);
+      this.currency = currency || (formattedOverride.includes('₹') ? 'INR' : formattedOverride.includes('$') ? 'USD' : null);
+    } else if (typeof raw === 'number') {
       if (raw < 0) throw new ValidationError('Prize pool amount cannot be negative');
       this.numericAmount = raw;
-      this.formatted = `$${raw.toLocaleString()}`;
+      const curr = (currency || 'USD').toUpperCase();
+      this.currency = curr;
+      const symbol = curr === 'INR' ? '₹' : curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : `${curr} `;
+      this.formatted = `${symbol}${raw.toLocaleString('en-US')}`;
     } else if (typeof raw === 'string') {
       const trimmed = raw.trim();
-      if (!trimmed) {
+      if (!trimmed || trimmed.toLowerCase() === 'tbd' || trimmed.toLowerCase() === 'null') {
         this.formatted = 'TBD';
         this.numericAmount = 0;
+        this.currency = null;
       } else {
         this.formatted = trimmed;
         const nums = trimmed.replace(/[^0-9.]/g, '');
         this.numericAmount = nums ? parseFloat(nums) : 0;
+        if (currency) {
+          this.currency = currency.toUpperCase();
+        } else if (trimmed.includes('₹') || trimmed.toUpperCase().includes('INR')) {
+          this.currency = 'INR';
+        } else if (trimmed.includes('$') || trimmed.toUpperCase().includes('USD')) {
+          this.currency = 'USD';
+        } else if (trimmed.includes('€') || trimmed.toUpperCase().includes('EUR')) {
+          this.currency = 'EUR';
+        } else if (trimmed.includes('£') || trimmed.toUpperCase().includes('GBP')) {
+          this.currency = 'GBP';
+        } else {
+          this.currency = null;
+        }
       }
     } else {
       this.formatted = 'TBD';
       this.numericAmount = 0;
+      this.currency = null;
     }
   }
 
   public getFormatted(): string { return this.formatted; }
   public getNumericAmount(): number { return this.numericAmount; }
+  public getCurrency(): string | null { return this.currency; }
   public equals(other?: PrizePool | null): boolean { return !!other && other.getFormatted() === this.formatted; }
   public toString(): string { return this.formatted; }
-  public toJSON(): { formatted: string; numericAmount: number } {
-    return { formatted: this.formatted, numericAmount: this.numericAmount };
+  public toJSON(): { formatted: string; numericAmount: number; currency: string | null } {
+    return { formatted: this.formatted, numericAmount: this.numericAmount, currency: this.currency };
   }
 }
 
@@ -152,10 +181,10 @@ export class Coordinates {
   private readonly longitude: number;
 
   constructor(lat: number, lng: number) {
-    if (typeof lat !== 'number' || isNaN(lat) || lat < -90 || lat > 90) {
+    if (typeof lat !== 'number' || isNaN(lat) || !isFinite(lat) || lat < -90 || lat > 90) {
       throw new ValidationError(`Latitude must be between -90 and 90. Got: ${lat}`);
     }
-    if (typeof lng !== 'number' || isNaN(lng) || lng < -180 || lng > 180) {
+    if (typeof lng !== 'number' || isNaN(lng) || !isFinite(lng) || lng < -180 || lng > 180) {
       throw new ValidationError(`Longitude must be between -180 and 180. Got: ${lng}`);
     }
     this.latitude = lat;
@@ -174,30 +203,46 @@ export class Coordinates {
 
 export class Location {
   private readonly city?: string;
-  private readonly college?: string;
+  private readonly venueName?: string;
   private readonly fullAddress?: string;
   private readonly coordinates?: Coordinates;
   private readonly isOnline: boolean;
 
   constructor(props: {
     city?: string | null;
+    venueName?: string | null;
+    venue?: string | null;
     college?: string | null;
+    locationCollege?: string | null;
+    locationCity?: string | null;
     fullAddress?: string | null;
+    address?: string | null;
     coordinates?: Coordinates | null;
     isOnline: boolean;
   }) {
     this.isOnline = props.isOnline;
-    if (!props.isOnline && !props.city?.trim()) {
-      throw new ValidationError('City location is required for in-person / hybrid events');
+    const resolvedCity = (props.city || props.locationCity || '').trim();
+    const resolvedVenue = (props.venueName || props.venue || props.college || props.locationCollege || '').trim();
+    const resolvedAddress = (props.fullAddress || props.address || '').trim();
+
+    if (!props.isOnline) {
+      if (!resolvedCity) {
+        throw new ValidationError('City location is required for in-person / hybrid events');
+      }
+      if (!resolvedVenue && !resolvedAddress) {
+        throw new ValidationError('Venue name or address is required for in-person / hybrid events');
+      }
     }
-    this.city = props.city?.trim() || undefined;
-    this.college = props.college?.trim() || undefined;
-    this.fullAddress = props.fullAddress?.trim() || undefined;
-    this.coordinates = props.coordinates || undefined;
+
+    this.city = resolvedCity || undefined;
+    this.venueName = resolvedVenue || undefined;
+    this.fullAddress = resolvedAddress || undefined;
+    this.coordinates = props.isOnline ? undefined : (props.coordinates || undefined);
   }
 
   public getCity(): string | undefined { return this.city; }
-  public getCollege(): string | undefined { return this.college; }
+  public getVenueName(): string | undefined { return this.venueName; }
+  public getCollege(): string | undefined { return this.venueName; } // backward-compatible alias
   public getFullAddress(): string | undefined { return this.fullAddress; }
   public getCoordinates(): Coordinates | undefined { return this.coordinates; }
   public getIsOnline(): boolean { return this.isOnline; }
@@ -206,13 +251,14 @@ export class Location {
     return !!other &&
       other.getIsOnline() === this.isOnline &&
       other.getCity() === this.city &&
-      other.getCollege() === this.college;
+      other.getVenueName() === this.venueName;
   }
 
   public toJSON() {
     return {
       city: this.city || null,
-      college: this.college || null,
+      venueName: this.venueName || null,
+      college: this.venueName || null,
       fullAddress: this.fullAddress || null,
       coordinates: this.coordinates ? this.coordinates.toJSON() : null,
       isOnline: this.isOnline

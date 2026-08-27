@@ -249,27 +249,38 @@ export default function PlaceAutocomplete({
         </div>
       ) : (
         /* Manual Fallback Inputs */
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl glass-card bg-slate-900/40 border border-purple-900/30">
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">City *</label>
-            <input
-              type="text"
-              value={fallbackCity}
-              onChange={(e) => onManualChange?.(e.target.value, fallbackVenue)}
-              placeholder="e.g. Bangalore"
-              className="w-full px-4 py-2.5 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-xs focus:outline-none focus:border-purple-500"
-            />
+        <div className="space-y-3 p-4 rounded-2xl glass-card bg-slate-900/40 border border-purple-900/30">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">City *</label>
+              <input
+                type="text"
+                value={fallbackCity}
+                onChange={(e) => {
+                  onClear();
+                  onManualChange?.(e.target.value, fallbackVenue);
+                }}
+                placeholder="e.g. Kolkata, Bengaluru, Pune"
+                className="w-full px-4 py-2.5 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-xs focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Venue Name / Campus / Coworking Space</label>
+              <input
+                type="text"
+                value={fallbackVenue}
+                onChange={(e) => {
+                  onClear();
+                  onManualChange?.(fallbackCity, e.target.value);
+                }}
+                placeholder="e.g. Guru Nanak Institute of Technology (GNIT)"
+                className="w-full px-4 py-2.5 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-xs focus:outline-none focus:border-purple-500"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Venue / College</label>
-            <input
-              type="text"
-              value={fallbackVenue}
-              onChange={(e) => onManualChange?.(fallbackCity, e.target.value)}
-              placeholder="e.g. IIT Bombay"
-              className="w-full px-4 py-2.5 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-xs focus:outline-none focus:border-purple-500"
-            />
-          </div>
+          <p className="text-[11px] text-slate-400">
+            Manual locations are verified by Findathon location resolution before map markers are published.
+          </p>
         </div>
       )}
     </div>

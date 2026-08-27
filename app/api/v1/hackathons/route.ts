@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
 
 
     // --------------------------------------------------
-    // 4. Support frontend aliases
+    // 4. API Request Boundary Adapter (Normalize Aliases Once)
     // --------------------------------------------------
 
     if (body.start_date && !body.startDate) {
@@ -239,16 +239,8 @@ export async function POST(req: NextRequest) {
       body.registrationDeadline = body.registration_deadline;
     }
 
-    /**
-     * Some clients may send registrationUrl
-     * instead of registerUrl.
-     */
-    if (
-      body.registrationUrl &&
-      !body.registerUrl
-    ) {
-      body.registerUrl =
-        body.registrationUrl;
+    if (body.registrationUrl && !body.registerUrl) {
+      body.registerUrl = body.registrationUrl;
     }
 
     if (
@@ -259,18 +251,25 @@ export async function POST(req: NextRequest) {
       body.registerUrl = `https://${body.registerUrl.trim()}`;
     }
 
-    /**
-     * Some clients may send coverImage
-     * instead of coverImageUrl.
-     */
-    if (
-      body.coverImage &&
-      !body.coverImageUrl
-    ) {
-      body.coverImageUrl =
-        body.coverImage;
+    const rawCover = body.coverImageUrl || body.coverImage || body.cover_image_url || body.cover_image || undefined;
+    if (rawCover) {
+      body.coverImageUrl = rawCover;
     }
 
+    const resolvedCity = body.locationCity || body.location_city || body.city || undefined;
+    const resolvedVenue = body.locationCollege || body.location_college || body.venueName || body.venue || body.college || undefined;
+    const resolvedAddress = body.fullAddress || body.full_address || body.address || undefined;
+    const isOnline = body.isOnline !== undefined ? Boolean(body.isOnline) : body.mode === 'online';
+    const mode = body.mode || (isOnline ? 'online' : 'offline');
+    const prizePool = body.prizePool || body.prize_pool || undefined;
+    const prizeCurrency = body.prizeCurrency || body.prize_currency || body.currency || undefined;
+
+    body.locationCity = resolvedCity;
+    body.locationCollege = resolvedVenue;
+    body.fullAddress = resolvedAddress;
+    body.isOnline = isOnline;
+    body.mode = mode;
+    body.prizePool = prizePool;
 
     // --------------------------------------------------
     // 5. Validate request
@@ -331,28 +330,21 @@ export async function POST(req: NextRequest) {
         context,
         {
           ...validatedData,
-
-          registerUrl:
-            validatedData.registerUrl,
-
+          city: resolvedCity,
+          locationCity: resolvedCity,
+          venueName: resolvedVenue,
+          locationCollege: resolvedVenue,
+          college: resolvedVenue,
+          fullAddress: resolvedAddress,
+          address: resolvedAddress,
+          coverImageUrl: validatedData.coverImageUrl || rawCover || null,
+          prizePool: validatedData.prizePool || prizePool || null,
+          prizeCurrency: prizeCurrency || null,
+          isOnline,
+          mode: mode as 'online' | 'offline' | 'hybrid',
+          registerUrl: validatedData.registerUrl,
           organizer,
-
-          /**
-           * VERY IMPORTANT
-           *
-           * This connects the submission
-           * to the authenticated user.
-           *
-           * The user's account/submissions
-           * page should use this value to
-           * find their submissions.
-           */
           submittedBy: user.id,
-
-          /**
-           * If registrationDeadline wasn't
-           * supplied, use startDate as fallback.
-           */
           registrationDeadline:
             validatedData.registrationDeadline ||
             validatedData.startDate

@@ -7,11 +7,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Users,
-  Code2,
-  Server,
-  Cpu,
-  Database,
-  Cloud
+  Info
 } from 'lucide-react';
 import { TeamCompatibilityResultDTO } from '@/types';
 
@@ -26,17 +22,21 @@ export default function TeamIntelligenceCard({
 }: TeamIntelligenceCardProps) {
   if (loading) {
     return (
-      <div className="glass-card rounded-3xl p-6 border border-purple-900/30 space-y-4 animate-pulse">
-        <div className="h-6 w-48 bg-purple-950/60 rounded-xl" />
-        <div className="h-24 bg-slate-900/60 rounded-2xl" />
-        <div className="h-40 bg-slate-900/40 rounded-2xl" />
+      <div className="glass-card rounded-3xl p-6 border border-purple-900/30 space-y-4 animate-pulse bg-[#0D1224]/80">
+        <div className="h-5 w-44 bg-purple-950/60 rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="h-32 bg-slate-900/60 rounded-2xl" />
+          <div className="h-32 bg-slate-900/60 rounded-2xl" />
+          <div className="h-32 bg-slate-900/60 rounded-2xl" />
+          <div className="h-32 bg-slate-900/60 rounded-2xl" />
+        </div>
       </div>
     );
   }
 
   if (!intelligence) {
     return (
-      <div className="glass-card rounded-3xl p-6 border border-purple-900/30 text-center space-y-2">
+      <div className="glass-card rounded-3xl p-6 border border-purple-900/30 text-center space-y-2 bg-[#0D1224]/50">
         <Users className="w-8 h-8 text-purple-400 mx-auto opacity-60" />
         <p className="text-sm font-semibold text-white">No Team Intelligence Computed</p>
         <p className="text-xs text-slate-400">Add members to analyze team compatibility and coverage.</p>
@@ -47,228 +47,209 @@ export default function TeamIntelligenceCard({
   const {
     teamFitScore,
     confidence,
-    requiredCoverageScore,
-    preferredCoverageScore,
-    roleCoverageScore,
     coveredSkills,
     criticalGaps,
     importantGaps,
     roleBreakdown
   } = intelligence;
 
-  const getConfidenceBadge = (conf: 'high' | 'medium' | 'low') => {
-    switch (conf) {
-      case 'high':
-        return { label: 'High Confidence', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' };
-      case 'medium':
-        return { label: 'Medium Confidence', color: 'bg-purple-500/15 text-purple-300 border-purple-500/30' };
-      default:
-        return { label: 'Preliminary', color: 'bg-blue-500/15 text-blue-300 border-blue-500/30' };
-    }
+  // Calculate SVG Polygon coordinates for the 5-dimension radar
+  const getPolygonPoints = () => {
+    const center = 60;
+    const radius = 45;
+    const values = [
+      Math.max(0.2, roleBreakdown.frontend),
+      Math.max(0.2, roleBreakdown.backend),
+      Math.max(0.2, roleBreakdown.aiMl),
+      Math.max(0.2, roleBreakdown.data),
+      Math.max(0.2, roleBreakdown.devops)
+    ];
+
+    return values
+      .map((val, idx) => {
+        const angle = (idx * 2 * Math.PI) / 5 - Math.PI / 2;
+        const r = radius * Math.min(1.0, val);
+        const x = center + r * Math.cos(angle);
+        const y = center + r * Math.sin(angle);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
   };
 
-  const confBadge = getConfidenceBadge(confidence);
+  const getConfidenceText = () => {
+    if (confidence === 'high') return 'High confidence';
+    if (confidence === 'medium') return 'Medium confidence';
+    return 'Low confidence';
+  };
+
+  const getDynamicSummary = () => {
+    if (criticalGaps.length === 0 && teamFitScore >= 80) {
+      return 'Great foundation! High capability alignment across all event tracks.';
+    }
+    if (criticalGaps.length > 0) {
+      return `Targeting ${criticalGaps[0].displayLabel} will significantly boost your team capability.`;
+    }
+    return 'Solid foundation. Filling remaining gaps will make your team unstoppable.';
+  };
 
   return (
-    <div className="glass-card rounded-3xl border border-purple-900/40 p-6 md:p-7 space-y-6 bg-gradient-to-br from-[#0D1224]/95 via-[#0c1024]/90 to-[#060816]/95 backdrop-blur-2xl shadow-2xl">
+    <div className="glass-card rounded-3xl border border-purple-900/40 p-6 md:p-7 bg-[#0D1224]/85 backdrop-blur-xl shadow-xl space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/10 border border-purple-500/30 text-purple-300">
-            <Sparkles className="w-3 h-3 text-purple-400 animate-pulse" />
-            <span>Deterministic Team Intelligence</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-purple-950/80 border border-purple-500/40 flex items-center justify-center text-purple-300">
+            <Sparkles className="w-3.5 h-3.5" />
           </div>
-          <h3 className="text-lg font-black text-white">Team Fit & Capability Analysis</h3>
+          <div>
+            <h3 className="text-sm font-bold text-white tracking-tight">Team Intelligence</h3>
+            <p className="text-[11px] text-slate-400">Real-time analysis of your team&apos;s capabilities</p>
+          </div>
         </div>
-
-        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${confBadge.color}`}>
-          <ShieldCheck className="w-3.5 h-3.5" />
-          {confBadge.label}
-        </span>
       </div>
 
-      {/* Main Score Hero */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-950/50 via-indigo-950/40 to-slate-900/80 border border-purple-800/30 flex items-center justify-between gap-6">
-        <div>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-            Overall Team Fit
-          </span>
-          <div className="text-4xl md:text-5xl font-black text-white font-mono tracking-tight mt-0.5">
-            {teamFitScore}<span className="text-2xl text-purple-400 font-sans">%</span>
+      {/* Grid: 4 Interactive / Visual Panes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Pane 1: Team Fit Gauge */}
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-col justify-between space-y-3">
+          <div className="flex items-center gap-3">
+            {/* SVG Circular Progress Gauge */}
+            <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
+              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+                <path
+                  className="text-slate-800"
+                  strokeWidth="3.5"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+                <path
+                  className="text-emerald-400"
+                  strokeDasharray={`${teamFitScore}, 100`}
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="none"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xs font-black text-white font-mono leading-none">
+                  {teamFitScore}%
+                </span>
+                <span className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">Fit</span>
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-950/80 text-purple-300 border border-purple-800">
+                <span>{getConfidenceText()}</span>
+                <Info className="w-2.5 h-2.5 opacity-70" />
+              </span>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Evaluates skill coverage, role balance, and track alignment.
+
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            {getDynamicSummary()}
           </p>
         </div>
 
-        {/* Mini progress ring or score bar indicator */}
-        <div className="w-20 h-20 rounded-2xl bg-purple-950/60 border border-purple-500/40 flex flex-col items-center justify-center text-center shrink-0">
-          <span className="text-[10px] font-bold text-slate-400">Coverage</span>
-          <span className="text-base font-black text-cyan-300 font-mono">
-            {Math.round(((requiredCoverageScore + roleCoverageScore) / 2) * 100)}%
+        {/* Pane 2: Covered Skills */}
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              <span>Covered</span>
+            </span>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {coveredSkills.length > 0 ? (
+                coveredSkills.slice(0, 4).map((sk, i) => (
+                  <span
+                    key={i}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-950 border border-slate-800 text-slate-200"
+                  >
+                    {sk.displayLabel}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-500">No verified skills covered yet.</span>
+              )}
+            </div>
+          </div>
+          <span className="text-[10px] text-slate-500 font-mono">
+            {coveredSkills.length} verified technologies
+          </span>
+        </div>
+
+        {/* Pane 3: Gaps */}
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-2.5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 text-amber-400" />
+              <span>Gaps</span>
+            </span>
+            <div className="space-y-1.5 mt-2">
+              {criticalGaps.length > 0 || importantGaps.length > 0 ? (
+                <>
+                  {criticalGaps.slice(0, 1).map((g, i) => (
+                    <div
+                      key={i}
+                      className="px-2.5 py-1 rounded-lg bg-rose-950/40 border border-rose-800/50 flex items-center justify-between text-xs font-semibold text-rose-200"
+                    >
+                      <span>{g.displayLabel}</span>
+                      <span className="text-[9px] uppercase font-bold text-rose-300">High Priority</span>
+                    </div>
+                  ))}
+                  {importantGaps.slice(0, 1).map((g, i) => (
+                    <div
+                      key={i}
+                      className="px-2.5 py-1 rounded-lg bg-amber-950/40 border border-amber-800/50 flex items-center justify-between text-xs font-semibold text-amber-200"
+                    >
+                      <span>{g.displayLabel}</span>
+                      <span className="text-[9px] uppercase font-bold text-amber-300">Medium Priority</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <span className="text-xs text-emerald-400 font-medium">All core tracks satisfied.</span>
+              )}
+            </div>
+          </div>
+          <span className="text-[10px] text-slate-500 font-mono">
+            {criticalGaps.length + importantGaps.length} missing domains
+          </span>
+        </div>
+
+        {/* Pane 4: Geometric Capability Polygon (Radar Visual) */}
+        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-col items-center justify-center relative">
+          <svg className="w-24 h-24" viewBox="0 0 120 120">
+            {/* Background 5-axis web */}
+            <polygon
+              points="60,15 102,46 86,96 34,96 18,46"
+              fill="none"
+              stroke="#1e293b"
+              strokeWidth="1"
+            />
+            <polygon
+              points="60,35 83,52 74,80 46,80 37,52"
+              fill="none"
+              stroke="#1e293b"
+              strokeWidth="0.8"
+            />
+            {/* Active filled polygon */}
+            <polygon
+              points={getPolygonPoints()}
+              fill="rgba(139, 92, 246, 0.25)"
+              stroke="#a855f7"
+              strokeWidth="1.5"
+            />
+            {/* Center glowing dot */}
+            <circle cx="60" cy="60" r="2" fill="#a855f7" />
+          </svg>
+          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+            Capability Balance
           </span>
         </div>
       </div>
-
-      {/* Breakdown Progress Bars */}
-      <div className="space-y-3.5">
-        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Dimension Breakdown
-        </h4>
-
-        {/* Required Skills */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-slate-300">Mandatory Event Skills</span>
-            <span className="text-white font-mono">{Math.round(requiredCoverageScore * 100)}%</span>
-          </div>
-          <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-purple-950">
-            <div
-              className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.round(requiredCoverageScore * 100)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Preferred Stack */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-slate-300">Preferred Technologies</span>
-            <span className="text-white font-mono">{Math.round(preferredCoverageScore * 100)}%</span>
-          </div>
-          <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-purple-950">
-            <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.round(preferredCoverageScore * 100)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Role Coverage */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className="text-slate-300">Full-Stack Role Coverage</span>
-            <span className="text-white font-mono">{Math.round(roleCoverageScore * 100)}%</span>
-          </div>
-          <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-purple-950">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.round(roleCoverageScore * 100)}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Role Breakdown Badges */}
-      <div className="space-y-2.5 pt-2 border-t border-purple-900/30">
-        <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Team Roles
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-            roleBreakdown.frontend >= 0.4 ? 'bg-purple-950/40 border-purple-500/40 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'
-          }`}>
-            <Code2 className={`w-3.5 h-3.5 ${roleBreakdown.frontend >= 0.4 ? 'text-purple-400' : 'text-slate-600'}`} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold truncate">Frontend</p>
-              <p className="text-[10px] font-mono text-slate-400">{Math.round(roleBreakdown.frontend * 100)}%</p>
-            </div>
-          </div>
-
-          <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-            roleBreakdown.backend >= 0.4 ? 'bg-indigo-950/40 border-indigo-500/40 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'
-          }`}>
-            <Server className={`w-3.5 h-3.5 ${roleBreakdown.backend >= 0.4 ? 'text-indigo-400' : 'text-slate-600'}`} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold truncate">Backend / API</p>
-              <p className="text-[10px] font-mono text-slate-400">{Math.round(roleBreakdown.backend * 100)}%</p>
-            </div>
-          </div>
-
-          <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-            roleBreakdown.aiMl >= 0.4 ? 'bg-cyan-950/40 border-cyan-500/40 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'
-          }`}>
-            <Cpu className={`w-3.5 h-3.5 ${roleBreakdown.aiMl >= 0.4 ? 'text-cyan-400' : 'text-slate-600'}`} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold truncate">AI / ML</p>
-              <p className="text-[10px] font-mono text-slate-400">{Math.round(roleBreakdown.aiMl * 100)}%</p>
-            </div>
-          </div>
-
-          <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-            roleBreakdown.data >= 0.4 ? 'bg-amber-950/40 border-amber-500/40 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'
-          }`}>
-            <Database className={`w-3.5 h-3.5 ${roleBreakdown.data >= 0.4 ? 'text-amber-400' : 'text-slate-600'}`} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold truncate">Database</p>
-              <p className="text-[10px] font-mono text-slate-400">{Math.round(roleBreakdown.data * 100)}%</p>
-            </div>
-          </div>
-
-          <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${
-            roleBreakdown.devops >= 0.4 ? 'bg-emerald-950/40 border-emerald-500/40 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'
-          }`}>
-            <Cloud className={`w-3.5 h-3.5 ${roleBreakdown.devops >= 0.4 ? 'text-emerald-400' : 'text-slate-600'}`} />
-            <div className="min-w-0">
-              <p className="text-xs font-bold truncate">Cloud / DevOps</p>
-              <p className="text-[10px] font-mono text-slate-400">{Math.round(roleBreakdown.devops * 100)}%</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Critical & Important Gaps Alert */}
-      {(criticalGaps.length > 0 || importantGaps.length > 0) && (
-        <div className="space-y-2 pt-2 border-t border-purple-900/30">
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-            Unfilled Capability Gaps
-          </h4>
-
-          <div className="space-y-2">
-            {criticalGaps.map((gap, i) => (
-              <div key={i} className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-xs text-rose-200 flex items-start gap-2">
-                <span className="px-1.5 py-0.5 rounded bg-rose-900 text-[10px] font-bold text-rose-300 uppercase shrink-0 mt-0.5">
-                  Critical
-                </span>
-                <span className="leading-tight">{gap.reason}</span>
-              </div>
-            ))}
-
-            {importantGaps.slice(0, 2).map((gap, i) => (
-              <div key={i} className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-2">
-                <span className="px-1.5 py-0.5 rounded bg-amber-900 text-[10px] font-bold text-amber-300 uppercase shrink-0 mt-0.5">
-                  Gap
-                </span>
-                <span className="leading-tight">{gap.reason}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Covered Skills */}
-      {coveredSkills.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-purple-900/30">
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            Verified Team Stack ({coveredSkills.length})
-          </h4>
-          <div className="flex flex-wrap gap-1.5">
-            {coveredSkills.map((sk, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900/80 border border-slate-700/60 text-slate-200"
-              >
-                <span>{sk.displayLabel}</span>
-                <span className="text-[10px] text-purple-400 font-mono">
-                  {Math.round(sk.proficiency * 100)}%
-                </span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

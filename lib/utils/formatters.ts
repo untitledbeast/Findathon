@@ -10,9 +10,9 @@
 export function formatPrize(
   prizePool?: string | null,
   prizeAmount?: number | string | null,
-  defaultCurrency = '$'
+  currency?: string | null
 ): string {
-  // 1. If explicit prizePool string is already formatted (e.g. "$10,000" or "₹50,000")
+  // 1. If explicit prizePool string is already formatted (e.g. "$10,000", "₹5,00,000", "€25,000")
   if (prizePool && typeof prizePool === 'string') {
     const trimmed = prizePool.trim();
     if (trimmed && trimmed.toLowerCase() !== 'null' && trimmed.toLowerCase() !== 'undefined') {
@@ -20,19 +20,28 @@ export function formatPrize(
     }
   }
 
-  // 2. If prizeAmount is supplied as a valid number
+  // 2. If prizeAmount is supplied as a number or numeric string
+  let numericVal: number | null = null;
   if (typeof prizeAmount === 'number' && !isNaN(prizeAmount)) {
-    if (prizeAmount === 0) return 'Free Registration';
-    return `${defaultCurrency}${prizeAmount.toLocaleString('en-US')}`;
-  }
-
-  // 3. If prizeAmount is supplied as a numeric string
-  if (typeof prizeAmount === 'string') {
+    numericVal = prizeAmount;
+  } else if (typeof prizeAmount === 'string') {
     const numericOnly = prizeAmount.replace(/[^0-9.]/g, '');
     const parsed = parseFloat(numericOnly);
-    if (!isNaN(parsed) && parsed > 0) {
-      return `${defaultCurrency}${parsed.toLocaleString('en-US')}`;
+    if (!isNaN(parsed)) numericVal = parsed;
+  }
+
+  if (numericVal !== null) {
+    if (numericVal === 0) return 'Free';
+    const formattedNum = numericVal.toLocaleString('en-US');
+    if (!currency) {
+      return formattedNum;
     }
+    const currUpper = currency.toUpperCase().trim();
+    if (currUpper === 'INR' || currUpper === '₹') return `₹${formattedNum}`;
+    if (currUpper === 'USD' || currUpper === '$') return `$${formattedNum}`;
+    if (currUpper === 'EUR' || currUpper === '€') return `€${formattedNum}`;
+    if (currUpper === 'GBP' || currUpper === '£') return `£${formattedNum}`;
+    return `${currUpper} ${formattedNum}`;
   }
 
   return 'TBD';

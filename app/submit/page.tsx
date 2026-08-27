@@ -61,7 +61,8 @@ export default function SubmissionWizardPage() {
   const [city, setCity] = useState('');
   const [venue, setVenue] = useState('');
   const [selectedPlace, setSelectedPlace] = useState<PlaceSuggestion | null>(null);
-  const [prizePool, setPrizePool] = useState('$10,000');
+  const [prizePool, setPrizePool] = useState('');
+  const [coverPreviewError, setCoverPreviewError] = useState(false);
 
   // Step 3
   const [minTeam, setMinTeam] = useState(1);
@@ -322,10 +323,29 @@ export default function SubmissionWizardPage() {
                 <input
                   type="text"
                   value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  placeholder="https://example.com/cover.jpg"
+                  onChange={(e) => {
+                    setCoverUrl(e.target.value);
+                    setCoverPreviewError(false);
+                  }}
+                  placeholder="https://example.com/cover.jpg or CDN image URL"
                   className="w-full px-4 py-3 rounded-xl glass-card bg-slate-900/60 border border-purple-900/40 text-white text-sm focus:outline-none focus:border-purple-500 transition-colors"
                 />
+                {coverUrl.trim().startsWith('http') && !coverPreviewError && (
+                  <div className="mt-2 relative rounded-xl overflow-hidden h-32 bg-slate-950 border border-purple-900/30">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverUrl.trim()}
+                      alt="Cover Preview"
+                      className="w-full h-full object-cover"
+                      onError={() => setCoverPreviewError(true)}
+                    />
+                  </div>
+                )}
+                {coverPreviewError && (
+                  <p className="text-[11px] text-amber-400 mt-1">
+                    Image preview unavailable. The URL will still be submitted safely.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -415,7 +435,15 @@ export default function SubmissionWizardPage() {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setMode(m.id as 'online' | 'offline' | 'hybrid')}
+                      onClick={() => {
+                        const newMode = m.id as 'online' | 'offline' | 'hybrid';
+                        setMode(newMode);
+                        if (newMode === 'online') {
+                          setSelectedPlace(null);
+                          setCity('');
+                          setVenue('');
+                        }
+                      }}
                       className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
                         mode === m.id ? 'bg-purple-600 text-white border-purple-400' : 'glass-card border-purple-900/30 text-slate-300'
                       }`}

@@ -227,6 +227,59 @@ export interface TeammateCandidateDTO {
   hasPendingInvite?: boolean;
 }
 
+export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface TeamProjectDTO {
+  id: string;
+  teamId: string;
+  title: string | null;
+  problemStatement: string | null;
+  solutionApproach: string | null;
+  techStack: string[];
+  repositoryUrl: string | null;
+  demoUrl: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamTaskDTO {
+  id: string;
+  teamId: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignedTo: string | null;
+  createdBy: string;
+  dueAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+  assignee?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  creator?: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
+}
+
+export interface TeamTaskProgressDTO {
+  totalTasks: number;
+  todoCount: number;
+  inProgressCount: number;
+  blockedCount: number;
+  doneCount: number;
+  completionPercentage: number;
+}
+
 export interface UserDTO {
   id: string;
   email: string;

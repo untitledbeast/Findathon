@@ -28,11 +28,21 @@ export class HackathonCommandService {
       organizer: string;
       organization?: string | null;
       isOnline: boolean;
+      mode?: 'online' | 'offline' | 'hybrid';
       city?: string | null;
+      locationCity?: string | null;
+      venueName?: string | null;
       college?: string | null;
+      locationCollege?: string | null;
       fullAddress?: string | null;
+      address?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
       tags?: string[];
       prizePool?: string | null;
+      prizeCurrency?: string | null;
+      coverImageUrl?: string | null;
+      coverImage?: string | null;
       minTeamSize?: number;
       maxTeamSize?: number;
       soloAllowed?: boolean;
@@ -57,11 +67,7 @@ export class HackathonCommandService {
         submittedBy: context.user.id
       });
 
-      console.log('[HACKATHON CREATE DEBUG]', {
-         authenticatedUserId: context.user.id,
-        inputSubmittedBy: input.submittedBy,
-        entitySubmittedBy: entity.submittedBy,
-      });
+      const coords = entity.location.getCoordinates();
 
       const dto = await this.hackathonRepo.create({
         title: entity.title,
@@ -71,15 +77,15 @@ export class HackathonCommandService {
         endDate: entity.dateRange.getEndDate().toISOString(),
         registrationDeadline: entity.registrationWindow.getDeadline().toISOString(),
         locationCity: entity.location.getCity() || null,
-        locationCollege: entity.location.getCollege() || null,
+        locationCollege: entity.location.getVenueName() || null,
         fullAddress: entity.location.getFullAddress() || null,
         isOnline: entity.location.getIsOnline(),
-        mode: entity.location.getIsOnline() ? 'online' : 'offline',
+        mode: entity.location.getIsOnline() ? 'online' : (input.mode || 'offline'),
         tags: entity.tags,
         registerUrl: entity.registerUrl.getValue(),
         organizer: entity.organizer,
         organization: entity.organization,
-        coverImageUrl: null,
+        coverImageUrl: entity.coverImageUrl ? entity.coverImageUrl.getValue() : null,
         status: entity.status.getValue(),
         minTeamSize: entity.teamSize.getMinSize(),
         maxTeamSize: entity.teamSize.getMaxSize(),
@@ -95,8 +101,8 @@ export class HackathonCommandService {
         socialDiscord: entity.socialDiscord,
         socialInstagram: entity.socialInstagram,
         submittedBy: entity.submittedBy,
-        latitude: null,
-        longitude: null,
+        latitude: coords ? coords.getLatitude() : null,
+        longitude: coords ? coords.getLongitude() : null,
         isVerified: false,
         isFeatured: false,
         difficulty: entity.difficulty,

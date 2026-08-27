@@ -32,12 +32,19 @@ export class HackathonFactory {
     organization?: string | null;
     isOnline: boolean;
     city?: string | null;
+    venueName?: string | null;
     college?: string | null;
+    locationCity?: string | null;
+    locationCollege?: string | null;
     fullAddress?: string | null;
+    address?: string | null;
     latitude?: number | null;
     longitude?: number | null;
     tags?: string[];
     prizePool?: string | null;
+    prizeCurrency?: string | null;
+    coverImageUrl?: string | null;
+    coverImage?: string | null;
     minTeamSize?: number;
     maxTeamSize?: number;
     soloAllowed?: boolean;
@@ -58,14 +65,20 @@ export class HackathonFactory {
     const registrationWindow = new RegistrationWindow(input.registrationDeadline, dateRange);
     
     let coords: Coordinates | null = null;
-    if (typeof input.latitude === 'number' && typeof input.longitude === 'number') {
+    if (
+      !input.isOnline &&
+      typeof input.latitude === 'number' &&
+      typeof input.longitude === 'number' &&
+      Number.isFinite(input.latitude) &&
+      Number.isFinite(input.longitude)
+    ) {
       coords = new Coordinates(input.latitude, input.longitude);
     }
 
     const location = new Location({
-      city: input.city,
-      college: input.college,
-      fullAddress: input.fullAddress,
+      city: input.city || input.locationCity,
+      venueName: input.venueName || input.college || input.locationCollege,
+      fullAddress: input.fullAddress || input.address,
       coordinates: coords,
       isOnline: input.isOnline
     });
@@ -75,6 +88,16 @@ export class HackathonFactory {
       input.maxTeamSize || 4,
       input.soloAllowed ?? true
     );
+
+    const rawCover = (input.coverImageUrl || input.coverImage || '').trim();
+    let coverUrl: Url | null = null;
+    if (rawCover) {
+      try {
+        coverUrl = new Url(rawCover);
+      } catch {
+        coverUrl = null;
+      }
+    }
 
     const props: HackathonEntityProps = {
       id,
@@ -89,11 +112,11 @@ export class HackathonFactory {
       registerUrl: new Url(input.registerUrl),
       organizer: input.organizer.trim(),
       organization: input.organization?.trim() || null,
-      coverImageUrl: null,
+      coverImageUrl: coverUrl,
       status: new HackathonStatusState(HACKATHON_STATUS.PENDING),
       teamSize,
       eligibility: 'Open to All',
-      prizePool: new PrizePool(input.prizePool || 'TBD'),
+      prizePool: new PrizePool(input.prizePool || 'TBD', input.prizeCurrency || null),
       contactName: input.contactName?.trim() || null,
       contactEmail: input.contactEmail ? new Email(input.contactEmail) : null,
       contactPhone: input.contactPhone?.trim() || null,

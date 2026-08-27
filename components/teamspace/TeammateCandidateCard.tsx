@@ -1,15 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState } from 'react';
 import {
-  Sparkles,
-  ShieldCheck,
   Check,
   Send,
   UserPlus,
   UserCheck,
   Clock,
-  ArrowRight
+  MessageSquare
 } from 'lucide-react';
 import { TeammateCandidateDTO } from '@/types';
 
@@ -54,174 +53,133 @@ export default function TeammateCandidateCard({
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return 'from-purple-500 to-indigo-500 text-purple-200 border-purple-500/40';
-    if (score >= 70) return 'from-cyan-500 to-blue-500 text-cyan-200 border-cyan-500/40';
-    return 'from-slate-600 to-slate-700 text-slate-300 border-slate-600/40';
-  };
+  const isHighContribution = candidate.contributionScore >= 80;
 
   return (
-    <div className="glass-card rounded-2xl border border-purple-900/30 p-5 space-y-4 hover:border-purple-500/40 transition-all bg-[#0D1224]/80 backdrop-blur-xl shadow-lg flex flex-col justify-between">
+    <div className="glass-card rounded-2xl border border-purple-900/30 p-5 hover:border-purple-500/40 transition-all bg-[#0D1224]/85 backdrop-blur-xl shadow-lg flex flex-col justify-between space-y-4">
       <div className="space-y-3.5">
-        {/* Header: Avatar, Name, Contribution Score */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 border border-purple-400/40 flex items-center justify-center text-white font-bold text-base shadow-md shrink-0">
-              {candidate.displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <h4 className="text-sm font-bold text-white truncate">{candidate.displayName}</h4>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[11px] font-semibold text-purple-300 capitalize">
-                  {candidate.technicalLevel} Builder
-                </span>
-                <span className="text-slate-600">•</span>
-                <span className="text-[10px] text-slate-400 font-medium inline-flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Verified
-                </span>
-              </div>
-            </div>
+        {/* Header: Avatar, Name, Title, Contribution Tag */}
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 border border-purple-400/30 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+            {candidate.displayName ? candidate.displayName.charAt(0).toUpperCase() : 'D'}
           </div>
-
-          <div className={`px-2.5 py-1 rounded-xl bg-gradient-to-r ${getScoreColor(candidate.contributionScore)} border text-center shadow-sm shrink-0`}>
-            <span className="text-xs font-black font-mono block">
-              +{candidate.contributionScore}%
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-wider block opacity-80">
-              Contribution
-            </span>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-white truncate">{candidate.displayName}</h4>
+            <p className="text-[11px] text-slate-400 capitalize truncate">
+              {candidate.technicalLevel} Developer
+            </p>
           </div>
         </div>
 
-        {/* Skills Added */}
+        {/* Contribution Pill */}
+        <div>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide uppercase ${
+              isHighContribution
+                ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-800/60'
+                : 'bg-indigo-950/70 text-indigo-300 border border-indigo-800/60'
+            }`}
+          >
+            {isHighContribution ? 'High Contribution' : 'Medium Contribution'}
+          </span>
+        </div>
+
+        {/* Skills Added / Covered */}
         {candidate.addsSkills.length > 0 && (
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Adds to Team Stack
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {candidate.addsSkills.map((sk, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-purple-950/80 text-purple-200 border border-purple-500/30"
-                >
-                  +{sk}
-                </span>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-1.5">
+            {candidate.addsSkills.slice(0, 3).map((sk, i) => (
+              <span
+                key={i}
+                className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-900/90 text-slate-300 border border-slate-800"
+              >
+                {sk}
+              </span>
+            ))}
           </div>
         )}
 
-        {/* Fills Gaps */}
-        {candidate.fillsGaps.length > 0 && (
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Gaps Resolved
-            </span>
-            <div className="space-y-1">
-              {candidate.fillsGaps.map((gap, i) => (
-                <div key={i} className="text-xs text-emerald-300 flex items-center gap-1.5 font-medium">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>{gap}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Why Recommended */}
-        {candidate.reasons.length > 0 && (
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-purple-400" />
-              Why Recommended
-            </span>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {candidate.reasons[0]}
-            </p>
-          </div>
-        )}
+        {/* Real Explanation Reason */}
+        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+          {candidate.reasons && candidate.reasons.length > 0
+            ? candidate.reasons[0]
+            : `Adds verified capability to fulfill team gap requirements.`}
+        </p>
       </div>
 
-      {/* Action Controls: Distinct Connect vs Invite */}
-      <div className="pt-3 border-t border-purple-900/20 space-y-2">
+      {/* Action Strip: Connect Icon + Invite Button */}
+      <div className="pt-2 border-t border-purple-950/50 space-y-2">
         <div className="flex items-center gap-2">
-          {/* Connection status button / badge */}
+          {/* Connect Icon Button */}
           {connectionState === 'accepted' ? (
-            <div className="px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold flex items-center gap-1 shrink-0">
-              <UserCheck className="w-3 h-3 text-indigo-400" />
-              <span>Connected</span>
+            <div
+              className="p-2 rounded-xl bg-indigo-950/60 border border-indigo-800/50 text-indigo-300"
+              title="Connected"
+            >
+              <UserCheck className="w-4 h-4" />
             </div>
           ) : connectionState === 'pending_sent' ? (
-            <div className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-[11px] font-semibold flex items-center gap-1 shrink-0">
-              <Clock className="w-3 h-3 text-amber-400" />
-              <span>Request Sent</span>
-            </div>
-          ) : connectionState === 'pending_received' ? (
-            <div className="px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40 text-purple-300 text-[11px] font-semibold flex items-center gap-1 shrink-0">
-              <span>Incoming Request</span>
+            <div
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-amber-400"
+              title="Connection Request Sent"
+            >
+              <Clock className="w-4 h-4" />
             </div>
           ) : onConnect ? (
             <button
               onClick={handleConnect}
               disabled={isConnecting}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-50"
-              title="Connect with this developer"
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition cursor-pointer disabled:opacity-50"
+              title="Connect with developer"
+              aria-label={`Connect with ${candidate.displayName}`}
             >
-              {isConnecting ? 'Connecting...' : '+ Connect'}
+              <UserPlus className="w-4 h-4" />
             </button>
           ) : null}
 
-          {/* Invitation action */}
+          {/* Invite Button */}
           <div className="flex-1 min-w-0">
             {invited ? (
-              <div className="w-full py-1.5 px-3 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5">
+              <div className="w-full py-2 px-3 rounded-xl bg-emerald-950/50 border border-emerald-800/50 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5">
                 <Check className="w-3.5 h-3.5" />
                 <span>Invited</span>
               </div>
             ) : candidate.invitationState === 'accepted' ? (
-              <div className="w-full py-1.5 px-3 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5">
-                <span>Team Member</span>
-              </div>
-            ) : candidate.invitationState === 'not_allowed' ? (
-              <div className="w-full py-1.5 px-3 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 text-xs font-semibold flex items-center justify-center">
-                <span>In Another Team</span>
+              <div className="w-full py-2 px-3 rounded-xl bg-indigo-950/50 border border-indigo-800/50 text-indigo-300 text-xs font-bold flex items-center justify-center">
+                <span>Member</span>
               </div>
             ) : !showInviteBox ? (
               <button
                 onClick={() => setShowInviteBox(true)}
-                className="w-full py-1.5 px-3 rounded-xl bg-purple-900/40 hover:bg-purple-800/50 border border-purple-500/30 hover:border-purple-500/60 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-950/40 transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <UserPlus className="w-3.5 h-3.5 text-purple-400" />
-                <span>Invite to Team</span>
-                <ArrowRight className="w-3 h-3 text-purple-400 ml-auto" />
+                <span>Invite</span>
               </button>
             ) : null}
           </div>
         </div>
 
-        {/* Expandable note for Team Invitation */}
+        {/* Note Dialog / Input if Invite Box is active */}
         {showInviteBox && !invited && (
-          <div className="space-y-2 pt-1 animate-fade-in-up">
+          <div className="space-y-2 pt-1 animate-in fade-in">
             <input
               type="text"
-              placeholder="Add optional note (e.g. Building Next.js + AI track)..."
+              placeholder="Add optional note (e.g. AI track)..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-purple-900/60 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500"
+              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-purple-900/60 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500"
             />
             <div className="flex gap-2">
               <button
                 onClick={handleSendInvite}
                 disabled={isInviting}
-                className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md cursor-pointer disabled:opacity-50"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>{isInviting ? 'Sending...' : 'Send Invite'}</span>
+                <Send className="w-3 h-3" />
+                <span>{isInviting ? 'Sending...' : 'Send'}</span>
               </button>
               <button
                 onClick={() => setShowInviteBox(false)}
-                className="py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold cursor-pointer"
+                className="py-1.5 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs font-bold cursor-pointer"
               >
                 Cancel
               </button>

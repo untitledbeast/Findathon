@@ -106,13 +106,21 @@ export class HackathonMapper {
 
     // Filter against known columns supported in Postgres schema
     const DB_COLUMNS = new Set([
-      'id', 'title', 'description', 'start_date', 'end_date',
-      'location_city', 'location_college', 'is_online', 'tags',
-      'register_url', 'organizer', 'cover_image_url', 'status',
-      'created_at', 'is_featured', 'featured_order',
+      'id', 'title', 'tagline', 'description', 'start_date', 'end_date',
+      'registration_deadline', 'location_city', 'location_college', 'full_address',
+      'is_online', 'mode', 'tags', 'register_url', 'organizer', 'organization',
+      'cover_image_url', 'status', 'prize_pool', 'registration_fee',
+      'min_team_size', 'max_team_size', 'solo_allowed', 'eligibility',
+      'contact_name', 'contact_email', 'contact_phone',
+      'social_twitter', 'social_linkedin', 'social_discord', 'social_instagram',
+      'created_at', 'updated_at', 'is_featured', 'featured_order',
       'view_count', 'save_count', 'click_count', 'avg_rating',
       'review_count', 'rejection_reason', 'reviewed_by', 'reviewed_at',
-      'submitted_by'
+      'submitted_by', 'latitude', 'longitude',
+      'location_status', 'location_precision', 'location_source',
+      'geocoder_provider', 'geocoder_confidence', 'normalized_address',
+      'geocoded_at', 'last_attempted_at', 'last_error',
+      'is_verified', 'difficulty', 'has_certificate', 'is_hiring'
     ]);
 
     const sanitized: Record<string, unknown> = {};

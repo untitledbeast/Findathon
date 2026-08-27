@@ -15,9 +15,93 @@ export interface PlaceSuggestion {
   confidence: number;
 }
 
-// In-memory query cache for fast suggestion deduplication
+interface NominatimRawItem {
+  place_id?: number | string;
+  lat: string;
+  lon: string;
+  name?: string;
+  display_name: string;
+  class?: string;
+  type?: string;
+  address?: {
+    city?: string;
+    town?: string;
+    municipality?: string;
+    suburb?: string;
+    state_district?: string;
+    state?: string;
+    country?: string;
+  };
+}
+
+// In-memory query cache for fast suggestion deduplication (Best-effort L1 optimization)
 const autocompleteCache = new Map<string, { timestamp: number; results: PlaceSuggestion[] }>();
-const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
+const CACHE_TTL_MS = 1000 * 60 * 15; // 15 minutes
+const MAX_CACHE_SIZE = 200;
+
+async function queryNominatim(queryStr: string): Promise<NominatimRawItem[]> {
+  try {
+    const encoded = encodeURIComponent(queryStr);
+    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&addressdetails=1&limit=6&countrycodes=in`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Findathon/1.0 (contact@findathon.app)',
+        'Accept-Language': 'en'
+      },
+      signal: controller.signal,
+      next: { revalidate: 1800 }
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? (data as NominatimRawItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function generateCandidateQueries(original: string): string[] {
+  const candidates: string[] = [original];
+  const trimmed = original.trim();
+
+  // If query contains parentheses like "Guru Nanak Institute of Technology (GNIT), Panihati"
+  if (/\([^)]+\)/.test(trimmed)) {
+    // Candidate A: Text without parenthesized content
+    const withoutParens = trimmed.replace(/\([^)]+\)/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    if (withoutParens.length >= 3 && !candidates.includes(withoutParens)) {
+      candidates.push(withoutParens);
+    }
+
+    // Candidate B: Parenthesized acronym + locality
+    const match = trimmed.match(/\(([^)]+)\)/);
+    if (match && match[1]) {
+      const acronym = match[1].trim();
+      const afterComma = trimmed.split(',').slice(1).join(',').trim();
+      if (afterComma) {
+        const acronymWithLocality = `${acronym}, ${afterComma}`;
+        if (!candidates.includes(acronymWithLocality)) {
+          candidates.push(acronymWithLocality);
+        }
+      }
+    }
+  }
+
+  // If query contains commas like "GNIT, Panihati", try without comma
+  if (trimmed.includes(',')) {
+    const withoutComma = trimmed.replace(/,/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    if (withoutComma.length >= 3 && !candidates.includes(withoutComma)) {
+      candidates.push(withoutComma);
+    }
+  }
+
+  return candidates;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,28 +116,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, suggestions: cached.results, cached: true });
     }
 
-    const encoded = encodeURIComponent(q);
-    const url = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=json&addressdetails=1&limit=6&countrycodes=in`;
+    const candidateQueries = generateCandidateQueries(q);
+    let rawData: NominatimRawItem[] = [];
 
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Findathon/1.0 (contact@findathon.app)',
-        'Accept-Language': 'en'
-      },
-      next: { revalidate: 3600 }
-    });
-
-    if (!res.ok) {
-      return NextResponse.json({ success: true, suggestions: [] });
-    }
-
-    const rawData = await res.json();
-    if (!Array.isArray(rawData)) {
-      return NextResponse.json({ success: true, suggestions: [] });
+    // Query candidates sequentially with strict budget (stop at first non-empty response)
+    for (const candidate of candidateQueries.slice(0, 3)) {
+      const results = await queryNominatim(candidate);
+      if (results && results.length > 0) {
+        rawData = results;
+        break;
+      }
     }
 
     const suggestions: PlaceSuggestion[] = [];
     const seenCoordinates = new Set<string>();
+    const seenPlaceIds = new Set<string>();
 
     for (const item of rawData) {
       const lat = parseFloat(item.lat);
@@ -62,6 +139,10 @@ export async function GET(req: NextRequest) {
       if (!LocationValidator.isValidCoordinate(lat, lon)) {
         continue;
       }
+
+      const placeId = String(item.place_id || `${lat}_${lon}`);
+      if (seenPlaceIds.has(placeId)) continue;
+      seenPlaceIds.add(placeId);
 
       const coordKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
       if (seenCoordinates.has(coordKey)) continue;
@@ -93,7 +174,7 @@ export async function GET(req: NextRequest) {
       }
 
       suggestions.push({
-        placeId: String(item.place_id || `${lat}_${lon}`),
+        placeId,
         title,
         venue,
         city,
@@ -107,7 +188,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Store in cache
+    // Cache management
+    if (autocompleteCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = autocompleteCache.keys().next().value;
+      if (firstKey) autocompleteCache.delete(firstKey);
+    }
+
     autocompleteCache.set(cacheKey, {
       timestamp: Date.now(),
       results: suggestions

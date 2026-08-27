@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { formatResponse, formatError } from '@/lib/transport/api-response';
-import { BaseError } from '@/lib/errors';
+import { BaseError, AuthenticationError, ValidationError } from '@/lib/errors';
 import { AuthService } from '@/lib/auth/auth.service';
+import { createProfileRepository } from '@/lib/services/factories';
 
 const updateProfileSchema = z.object({
   fullName: z.string().optional(),
@@ -20,49 +20,53 @@ const updateProfileSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await AuthService.requireAuth();
-    
-    // We use the anon key client since it's an authenticated user request relying on RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: req.headers.get('Authorization') || '',
-          }
-        }
-      }
-    );
+    const user = await AuthService.getUser();
+    if (!user) {
+      return formatError(new AuthenticationError('Authentication required to view profile'));
+    }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    const profileRepo = createProfileRepository();
+    const profile = await profileRepo.findById(user.id);
 
-    if (error) {
-      throw new BaseError('Profile not found', 'NOT_FOUND', 404);
+    if (!profile) {
+      // Safe fallback / initial profile for authenticated user
+      return formatResponse({
+        id: user.id,
+        fullName: user.fullName || 'Developer User',
+        avatarUrl: user.avatarUrl || null,
+        bio: null,
+        organization: null,
+        phone: null,
+        website: null,
+        email: user.email || null,
+        role: user.role || 'user',
+        socialTwitter: null,
+        socialLinkedin: null,
+        socialInstagram: null,
+        socialDiscord: null,
+        discoverableForTeams: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     return formatResponse({
-      id: data.id,
-      fullName: data.full_name,
-      avatarUrl: data.avatar_url,
-      bio: data.bio,
-      organization: data.organization,
-      phone: data.phone,
-      website: data.website,
-      email: data.email,
-      role: data.role,
-      socialTwitter: data.social_twitter,
-      socialLinkedin: data.social_linkedin,
-      socialInstagram: data.social_instagram,
-      socialDiscord: data.social_discord,
-      discoverableForTeams: data.discoverable_for_teams ?? false,
-      xpPoints: data.xp_points || 0,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: profile.id,
+      fullName: profile.fullName,
+      avatarUrl: profile.avatarUrl,
+      bio: profile.bio,
+      organization: profile.organization,
+      phone: profile.phone,
+      website: profile.website,
+      email: user.email,
+      role: profile.role,
+      socialTwitter: profile.socialTwitter,
+      socialLinkedin: profile.socialLinkedin,
+      socialInstagram: profile.socialInstagram,
+      socialDiscord: profile.socialDiscord,
+      discoverableForTeams: profile.discoverableForTeams ?? false,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
     });
   } catch (err: unknown) {
     if (err instanceof BaseError) {
@@ -74,69 +78,38 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const user = await AuthService.requireAuth();
+    const user = await AuthService.getUser();
+    if (!user) {
+      return formatError(new AuthenticationError('Authentication required to update profile'));
+    }
+
     const body = await req.json();
     const parsed = updateProfileSchema.parse(body);
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: req.headers.get('Authorization') || '',
-          }
-        }
-      }
-    );
-
-    const updateData: Record<string, string | boolean> = {};
-    if (parsed.fullName !== undefined) updateData.full_name = parsed.fullName;
-    if (parsed.bio !== undefined) updateData.bio = parsed.bio;
-    if (parsed.organization !== undefined) updateData.organization = parsed.organization;
-    if (parsed.phone !== undefined) updateData.phone = parsed.phone;
-    if (parsed.website !== undefined) updateData.website = parsed.website;
-    if (parsed.socialTwitter !== undefined) updateData.social_twitter = parsed.socialTwitter;
-    if (parsed.socialLinkedin !== undefined) updateData.social_linkedin = parsed.socialLinkedin;
-    if (parsed.socialInstagram !== undefined) updateData.social_instagram = parsed.socialInstagram;
-    if (parsed.socialDiscord !== undefined) updateData.social_discord = parsed.socialDiscord;
-    if (parsed.discoverableForTeams !== undefined) updateData.discoverable_for_teams = parsed.discoverableForTeams;
-
-    updateData.updated_at = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', user.id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new BaseError('Failed to update profile', 'UPDATE_ERROR', 500);
-    }
+    const profileRepo = createProfileRepository();
+    const updated = await profileRepo.upsert(user.id, parsed);
 
     return formatResponse({
-      id: data.id,
-      fullName: data.full_name,
-      avatarUrl: data.avatar_url,
-      bio: data.bio,
-      organization: data.organization,
-      phone: data.phone,
-      website: data.website,
-      email: data.email,
-      role: data.role,
-      socialTwitter: data.social_twitter,
-      socialLinkedin: data.social_linkedin,
-      socialInstagram: data.social_instagram,
-      socialDiscord: data.social_discord,
-      discoverableForTeams: data.discoverable_for_teams ?? false,
-      xpPoints: data.xp_points || 0,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: updated.id,
+      fullName: updated.fullName,
+      avatarUrl: updated.avatarUrl,
+      bio: updated.bio,
+      organization: updated.organization,
+      phone: updated.phone,
+      website: updated.website,
+      email: user.email,
+      role: updated.role,
+      socialTwitter: updated.socialTwitter,
+      socialLinkedin: updated.socialLinkedin,
+      socialInstagram: updated.socialInstagram,
+      socialDiscord: updated.socialDiscord,
+      discoverableForTeams: updated.discoverableForTeams ?? false,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
     });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return formatError(new BaseError(err.issues[0].message, 'VALIDATION_ERROR', 400));
+      return formatError(new ValidationError(err.issues[0].message));
     }
     if (err instanceof BaseError) {
       return formatError(err);
