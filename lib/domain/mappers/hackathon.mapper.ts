@@ -65,6 +65,7 @@ export class HackathonMapper {
     if (dto.id !== undefined) row.id = dto.id;
     if (dto.title !== undefined) row.title = dto.title;
     if (dto.description !== undefined) row.description = dto.description;
+    if (dto.tagline !== undefined) row.tagline = dto.tagline;
     if (dto.startDate !== undefined) row.start_date = dto.startDate;
     if (dto.endDate !== undefined) row.end_date = dto.endDate;
     if (dto.locationCity !== undefined) row.location_city = dto.locationCity;
@@ -74,11 +75,14 @@ export class HackathonMapper {
     }
     if (dto.fullAddress !== undefined) {
       row.location_address = dto.fullAddress;
+      row.full_address = dto.fullAddress;
     }
     if (dto.isOnline !== undefined) row.is_online = dto.isOnline;
     if (dto.mode !== undefined) {
       row.location_mode = dto.mode;
+      row.mode = dto.mode;
     }
+    if (dto.prizePool !== undefined) row.prize_pool = dto.prizePool;
     if (dto.tags !== undefined) row.tags = dto.tags;
     if (dto.registerUrl !== undefined) {
       row.register_url = dto.registerUrl;
@@ -109,9 +113,10 @@ export class HackathonMapper {
 
     // Filter against exact known columns physically existing in live Postgres schema
     const DB_COLUMNS = new Set([
-      'id', 'title', 'description', 'start_date', 'end_date',
-      'location_city', 'location_college', 'is_online', 'tags',
+      'id', 'title', 'description', 'tagline', 'start_date', 'end_date',
+      'location_city', 'location_college', 'is_online', 'mode', 'tags',
       'register_url', 'registration_url', 'organizer', 'cover_image_url',
+      'prize_pool', 'full_address',
       'status', 'publication_status', 'event_status', 'submitted_by',
       'location_mode', 'venue_name', 'location_address', 'location_state',
       'location_country', 'latitude', 'longitude', 'normalized_location_query',
