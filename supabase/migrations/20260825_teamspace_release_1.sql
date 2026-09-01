@@ -11,6 +11,11 @@ ALTER TABLE public.profiles
 
 COMMENT ON COLUMN public.profiles.discoverable_for_teams IS 'Opt-in consent flag allowing Findathon Team Intelligence to suggest profile to developers looking for teammates.';
 
+-- 1b. Ensure hackathons table has min_team_size and max_team_size
+ALTER TABLE public.hackathons
+  ADD COLUMN IF NOT EXISTS min_team_size INT DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS max_team_size INT DEFAULT 4;
+
 -- 2. Create teams table (default private visibility)
 CREATE TABLE IF NOT EXISTS public.teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

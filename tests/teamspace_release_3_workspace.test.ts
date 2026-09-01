@@ -105,8 +105,14 @@ class MockTeamRepository implements ITeamRepository {
   public teams = new Map<string, TeamEntity>();
   public members: TeamMemberEntity[] = [];
 
+  async getTeamById(id: string): Promise<TeamEntity | null> {
+    return this.teams.get(id) || null;
+  }
   async findById(id: string): Promise<TeamEntity | null> {
     return this.teams.get(id) || null;
+  }
+  async getTeamsByHackathon(hackathonId: string): Promise<TeamEntity[]> {
+    return Array.from(this.teams.values()).filter(t => t.hackathonId === hackathonId);
   }
   async findByHackathonId(hackathonId: string): Promise<TeamEntity[]> {
     return Array.from(this.teams.values()).filter(t => t.hackathonId === hackathonId);
@@ -114,12 +120,15 @@ class MockTeamRepository implements ITeamRepository {
   async findByOwnerUserId(ownerUserId: string): Promise<TeamEntity[]> {
     return Array.from(this.teams.values()).filter(t => t.ownerUserId === ownerUserId);
   }
-  async findByUserId(userId: string): Promise<TeamEntity[]> {
+  async getTeamsByUserId(userId: string): Promise<TeamEntity[]> {
     const teamIds = this.members.filter(m => m.userId === userId && m.isActive()).map(m => m.teamId);
     return Array.from(this.teams.values()).filter(t => teamIds.includes(t.id));
   }
+  async findByUserId(userId: string): Promise<TeamEntity[]> {
+    return this.getTeamsByUserId(userId);
+  }
   async getActiveTeamForUserAndHackathon(userId: string, hackathonId: string): Promise<TeamEntity | null> {
-    const userTeams = await this.findByUserId(userId);
+    const userTeams = await this.getTeamsByUserId(userId);
     return userTeams.find(t => t.hackathonId === hackathonId && (t.status === 'forming' || t.status === 'active')) || null;
   }
   async createTeam(team: TeamEntity): Promise<TeamEntity> {
@@ -133,21 +142,36 @@ class MockTeamRepository implements ITeamRepository {
   async deleteTeam(id: string): Promise<void> {
     this.teams.delete(id);
   }
-  async getTeamMembers(teamId: string): Promise<TeamMemberEntity[]> {
+  async getMembersByTeamId(teamId: string): Promise<TeamMemberEntity[]> {
     return this.members.filter(m => m.teamId === teamId);
   }
-  async addTeamMember(member: TeamMemberEntity): Promise<TeamMemberEntity> {
+  async getTeamMembers(teamId: string): Promise<TeamMemberEntity[]> {
+    return this.getMembersByTeamId(teamId);
+  }
+  async getMember(teamId: string, userId: string): Promise<TeamMemberEntity | null> {
+    return this.members.find(m => m.teamId === teamId && m.userId === userId) || null;
+  }
+  async addMember(member: TeamMemberEntity): Promise<TeamMemberEntity> {
     this.members.push(member);
     return member;
   }
-  async updateTeamMember(member: TeamMemberEntity): Promise<TeamMemberEntity> {
+  async addTeamMember(member: TeamMemberEntity): Promise<TeamMemberEntity> {
+    return this.addMember(member);
+  }
+  async updateMember(member: TeamMemberEntity): Promise<TeamMemberEntity> {
     const idx = this.members.findIndex(m => m.id === member.id);
     if (idx >= 0) this.members[idx] = member;
     else this.members.push(member);
     return member;
   }
-  async removeTeamMember(teamId: string, userId: string): Promise<void> {
+  async updateTeamMember(member: TeamMemberEntity): Promise<TeamMemberEntity> {
+    return this.updateMember(member);
+  }
+  async removeMember(teamId: string, userId: string): Promise<void> {
     this.members = this.members.filter(m => !(m.teamId === teamId && m.userId === userId));
+  }
+  async removeTeamMember(teamId: string, userId: string): Promise<void> {
+    return this.removeMember(teamId, userId);
   }
   async createInvitation(): Promise<any> { return null; }
   async getInvitationById(): Promise<any> { return null; }
@@ -159,12 +183,14 @@ class MockTeamRepository implements ITeamRepository {
   async transferOwnership(teamId: string, currentOwnerId: string, newOwnerId: string): Promise<any> {
     const team = this.teams.get(teamId);
     if (team) {
-      const updated = new TeamEntity({ ...team.toJSON(), ownerUserId: newOwnerId, updatedAt: Date.now() });
+      const updated = new TeamEntity({ ...team.toJSON(), ownerUserId: newOwnerId });
       this.teams.set(teamId, updated);
+      return updated;
     }
+    throw new Error('Team not found');
   }
   async leaveTeamWithSuccession(teamId: string, userId: string): Promise<any> {
-    return { action: 'left' };
+    return { team: this.teams.get(teamId), action: 'left' };
   }
 }
 

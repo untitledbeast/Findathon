@@ -44,10 +44,19 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
     let isActive = true;
     async function loadProfile() {
       try {
-        const data = await profileApi.getProfile();
-        if (isActive) setProfileData(data);
+        const res = await fetch(`/api/v1/profile/${encodeURIComponent(username)}`);
+        const json = await res.json();
+        if (isActive) {
+          if (json.success && json.data) {
+            setProfileData(json.data);
+            setIsFollowing(json.data.connectionStatus === 'accepted');
+          } else {
+            setProfileData(null);
+          }
+        }
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load profile:', err);
+        if (isActive) setProfileData(null);
       } finally {
         if (isActive) setLoading(false);
       }
@@ -62,6 +71,29 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
         <Navbar />
         <main className="flex-1 max-w-4xl mx-auto w-full p-6 animate-pulse space-y-6">
           <div className="w-full h-64 bg-slate-900/80 rounded-3xl shimmer" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return (
+      <div className="min-h-screen bg-[#060816] text-[#F6F8FC] flex flex-col">
+        <Navbar />
+        <main className="flex-1 max-w-xl mx-auto w-full px-4 py-32 text-center space-y-4">
+          <div className="glass-card p-8 rounded-3xl border border-purple-900/30 space-y-4">
+            <h2 className="text-xl font-black text-white">Profile Not Found</h2>
+            <p className="text-sm text-slate-400">This developer profile does not exist or has been set to private.</p>
+            <div className="pt-2">
+              <Link
+                href="/teamspace"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-lg shadow-purple-900/40"
+              >
+                ← Back to TeamSpace
+              </Link>
+            </div>
+          </div>
         </main>
         <Footer />
       </div>
