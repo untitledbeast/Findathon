@@ -12,6 +12,7 @@ import { UniversityEntity, RichHackathon } from '@/lib/domain/hackathon.reposito
 import { storageService } from '@/lib/storage-service';
 import { useAuth } from '@/lib/auth-context';
 import { Hackathon } from '@/lib/supabase';
+import { getCartoTileUrl, CARTO_ATTRIBUTION } from '@/lib/map-utils';
 import {
   MapPin,
   Trophy,
@@ -210,8 +211,8 @@ export default function UniversityDetailPage() {
                 scrollWheelZoom={false}
               >
                 <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                  url={getCartoTileUrl()}
+                  attribution={CARTO_ATTRIBUTION}
                 />
                 {customMarkerIcon && (
                   <Marker
