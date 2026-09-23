@@ -17,9 +17,7 @@ import {
   isMarkerEligible,
   MARKER_COLORS,
   MARKER_GLOW,
-  getDaysLeft,
-  getCartoTileUrl,
-  CARTO_ATTRIBUTION
+  getDaysLeft
 } from '@/lib/map-utils';
 import {
   Search,
@@ -394,8 +392,19 @@ function DiscoveryPlatformContent() {
           zoomControl={false}
         >
           <TileLayer
-            url={getCartoTileUrl()}
-            attribution={CARTO_ATTRIBUTION}
+            url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            maxZoom={20}
+            detectRetina={true}
+            crossOrigin={true}
+            eventHandlers={{
+              tileerror: (e) => {
+                const layer = e.target;
+                if (layer && typeof layer.setUrl === 'function') {
+                  layer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+                }
+              }
+            }}
           />
 
           {userLocation && radiusKm && (

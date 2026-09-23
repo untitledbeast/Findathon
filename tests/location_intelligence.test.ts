@@ -247,7 +247,7 @@ async function runLocationIntelligenceTests() {
     const liveResult = await liveGeocoder.geocode('IIT Bombay, Mumbai, India');
     if (liveResult) {
       assert(LocationValidator.isValidCoordinate(liveResult.latitude, liveResult.longitude), 'Live coordinates valid');
-      assert(liveResult.country?.toLowerCase().includes('india'), 'Country is India');
+      assert(Boolean(liveResult.country?.toLowerCase().includes('india')), 'Country is India');
       console.log(`  ✓ Live Nominatim geocoded: IIT Bombay -> [${liveResult.latitude}, ${liveResult.longitude}] (${liveResult.formattedAddress?.slice(0, 50)}...)`);
     } else {
       console.log('  (Live Nominatim request skipped or network timed out - handled gracefully)');

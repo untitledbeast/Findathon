@@ -14,6 +14,9 @@ export interface RecommendationFilterOptions {
   mode?: 'online' | 'in-person';
   domain?: string;
   search?: string;
+  locationCity?: string;
+  userLat?: number;
+  userLng?: number;
   limit?: number;
   page?: number;
 }
@@ -22,6 +25,13 @@ export interface RecommendationResponse {
   isPersonalized: boolean;
   isStale: boolean;
   staleMessage?: string;
+  recommendationMode: 'COLD_START' | 'LIGHT_PERSONALIZATION' | 'FULL_PERSONALIZATION';
+  diagnostics: {
+    engineVersion: string;
+    featureVersion: string;
+    candidateCount: number;
+    eligibleCount: number;
+  };
   recommendations: Array<{
     hackathon: {
       id: string;
@@ -116,11 +126,14 @@ export class HackathonRecommendationService {
       ? 'Your recommendations may improve after syncing your GitHub or LeetCode account.'
       : undefined;
 
-    // Fetch approved, upcoming hackathons
+    // GATE 19: Performance Correction — Select only candidate fields instead of select('*')
+    const CANDIDATE_PROJECTION = 
+      'id, title, slug, description, tagline, tags, is_online, location_city, location_college, latitude, longitude, registration_deadline, start_date, end_date, status, is_verified, is_featured, prize_amount, difficulty, cover_image_url';
+
     const client = await this.getClient();
     let query = client
       .from('hackathons')
-      .select('*')
+      .select(CANDIDATE_PROJECTION)
       .eq('status', 'approved')
       .gte('end_date', nowIso);
 
@@ -138,6 +151,13 @@ export class HackathonRecommendationService {
         isPersonalized,
         isStale,
         staleMessage,
+        recommendationMode: 'COLD_START',
+        diagnostics: {
+          engineVersion: '1.5.0',
+          featureVersion: 'v2',
+          candidateCount: 0,
+          eligibleCount: 0
+        },
         recommendations: [],
         developerCapability: {
           technicalLevel: capabilityProfile.technicalLevel,
@@ -151,6 +171,22 @@ export class HackathonRecommendationService {
         computedAt: new Date(now).toISOString()
       };
     }
+
+    // Build recommendation matching context (GATES 8, 9, 10, 11)
+    const matchContext = {
+      userInterests: capabilityProfile.interests,
+      userLocation: {
+        city: options.locationCity || null,
+        latitude: options.userLat || null,
+        longitude: options.userLng || null
+      },
+      currentQuery: options.search,
+      activeFilters: {
+        mode: options.mode,
+        domain: options.domain
+      },
+      currentSurface: 'recommendations'
+    };
 
     // Process & Score Candidates with Structured Analysis
     const candidates: Array<{
@@ -178,10 +214,20 @@ export class HackathonRecommendationService {
           if (!domMatch && !tagMatch) continue;
         }
 
-        const match = HackathonMatchEngine.calculateMatch(capabilityProfile, hackCapability, eligibility, now);
+        const match = HackathonMatchEngine.calculateMatch(capabilityProfile, hackCapability, eligibility, now, matchContext);
 
-        // Deterministic Base Ranking Score
-        const baseRankScore = (match.overallScore * 0.70) + (match.confidenceScore * 0.20) + (eligibility.actionability * 0.10);
+        // Deterministic Base Ranking Score:
+        // In cold start: balance quality (30%), actionability (40%), freshness (30%)
+        // In personalized: capability fit (60%), confidence (20%), actionability (20%)
+        let baseRankScore: number;
+        if (match.recommendationMode === 'COLD_START') {
+          const qualityScore = hackCapability.dataQuality === 'high' ? 1.0 : (hackCapability.dataQuality === 'medium' ? 0.70 : 0.40);
+          const freshnessScore = Math.max(0.2, 1.0 - Math.min(1.0, (now - hackCapability.eventStart.getTime()) / (30 * 86400000)));
+          baseRankScore = (eligibility.actionability * 0.40) + (qualityScore * 0.35) + (freshnessScore * 0.25);
+        } else {
+          baseRankScore = (match.overallScore * 0.65) + (match.confidenceScore * 0.20) + (eligibility.actionability * 0.15);
+        }
+
         const primaryDomain = hackCapability.domains[0] || 'general';
 
         candidates.push({
@@ -197,7 +243,6 @@ export class HackathonRecommendationService {
     }
 
     // Sort with deterministic diversity penalty
-    // Initial sort by baseRankScore
     candidates.sort((a, b) => {
       if (b.baseRankScore !== a.baseRankScore) {
         return b.baseRankScore - a.baseRankScore;
@@ -211,7 +256,6 @@ export class HackathonRecommendationService {
     const seenDomains = new Map<string, number>();
 
     while (pool.length > 0) {
-      // Find the best candidate taking diversity into account
       let bestIndex = 0;
       let bestAdjustedScore = -Infinity;
 
@@ -259,10 +303,19 @@ export class HackathonRecommendationService {
       match: item.match
     }));
 
+    const resolvedMode = candidates.length > 0 ? (candidates[0].match.recommendationMode || 'COLD_START') : (isPersonalized ? 'LIGHT_PERSONALIZATION' : 'COLD_START');
+
     return {
       isPersonalized,
       isStale,
       staleMessage,
+      recommendationMode: resolvedMode,
+      diagnostics: {
+        engineVersion: '1.5.0',
+        featureVersion: 'v2',
+        candidateCount: rawHackathons.length,
+        eligibleCount: candidates.length
+      },
       recommendations,
       developerCapability: {
         technicalLevel: capabilityProfile.technicalLevel,

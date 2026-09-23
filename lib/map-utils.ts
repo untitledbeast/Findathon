@@ -152,24 +152,3 @@ export function clusterHackathons(hackathons: MapHackathon[], zoomLevel: number)
 
   return Object.values(clusters);
 }
-
-/**
- * CARTO Basemap Configuration
- */
-export const CARTO_BASEMAP_STYLE = 'dark_all';
-
-export const CARTO_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>';
-
-/**
- * Constructs authenticated CARTO basemap tile URL.
- * Falls back cleanly to base URL if NEXT_PUBLIC_CARTO_API_KEY is not configured.
- */
-export function getCartoTileUrl(style: string = CARTO_BASEMAP_STYLE): string {
-  const apiKey = process.env.NEXT_PUBLIC_CARTO_API_KEY;
-  const baseUrl = `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`;
-  if (apiKey && apiKey.trim() !== '') {
-    return `${baseUrl}?api_key=${encodeURIComponent(apiKey.trim())}`;
-  }
-  return baseUrl;
-}

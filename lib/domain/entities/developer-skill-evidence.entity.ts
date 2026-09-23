@@ -7,7 +7,7 @@ export interface DeveloperSkillEvidenceEntityProps {
   source: SkillEvidenceSource;
   evidenceType: SkillEvidenceType;
   externalId: string | null;
-  url: string | null;
+  url?: string | null;
   signals: Record<string, unknown>;
   weight: number;
   createdAt: number;
@@ -26,7 +26,7 @@ export class DeveloperSkillEvidenceEntity {
   public get source(): SkillEvidenceSource { return this.props.source; }
   public get evidenceType(): SkillEvidenceType { return this.props.evidenceType; }
   public get externalId(): string | null { return this.props.externalId; }
-  public get url(): string | null { return this.props.url; }
+  public get url(): string | null { return this.props.url ?? null; }
   public get signals(): Record<string, unknown> { return { ...this.props.signals }; }
   public get weight(): number { return this.props.weight; }
   public get createdAt(): number { return this.props.createdAt; }

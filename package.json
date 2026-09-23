@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx tsx tests/match-engine.test.ts"
+    "test": "npx tsx tests/match-engine.test.ts && npx tsx tests/phase2_accuracy_foundation.test.ts && npx tsx tests/recommendation_engine_v2.test.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.68.0",

@@ -12,7 +12,6 @@ import { UniversityEntity, RichHackathon } from '@/lib/domain/hackathon.reposito
 import { storageService } from '@/lib/storage-service';
 import { useAuth } from '@/lib/auth-context';
 import { Hackathon } from '@/lib/supabase';
-import { getCartoTileUrl, CARTO_ATTRIBUTION } from '@/lib/map-utils';
 import {
   MapPin,
   Trophy,
@@ -207,12 +206,23 @@ export default function UniversityDetailPage() {
               <MapContainer
                 center={[Number(university.latitude), Number(university.longitude)]}
                 zoom={14}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: '100%', height: '100%', background: '#060816' }}
                 scrollWheelZoom={false}
               >
                 <TileLayer
-                  url={getCartoTileUrl()}
-                  attribution={CARTO_ATTRIBUTION}
+                  url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  maxZoom={20}
+                  detectRetina={true}
+                  crossOrigin={true}
+                  eventHandlers={{
+                    tileerror: (e) => {
+                      const layer = e.target;
+                      if (layer && typeof layer.setUrl === 'function') {
+                        layer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+                      }
+                    }
+                  }}
                 />
                 {customMarkerIcon && (
                   <Marker

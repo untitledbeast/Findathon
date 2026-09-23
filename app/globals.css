@@ -162,3 +162,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* LEAFLET DARK MAP CONTAINER (Prevents white flash) */
+.leaflet-container {
+  background: #060816 !important;
+}
+.leaflet-tile-pane {
+  opacity: 1;
+}

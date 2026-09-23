@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { RecommendationResponse } from '@/lib/services/hackathon-recommendation.service';
 import { HackathonMatchResult } from '@/lib/domain/matching/hackathon-match-engine';
+import { useEventTracker } from '@/lib/recommendation/use-event-tracker';
 import RecommendationCard from './RecommendationCard';
 import WhyMatchModal from './WhyMatchModal';
 import RecommendationSkeleton from './RecommendationSkeleton';
@@ -37,6 +38,9 @@ export default function HomepageRecommendations({ initialData }: HomepageRecomme
   const [loading, setLoading] = useState<boolean>(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [activeDomain, setActiveDomain] = useState<string>('all');
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [undoToast, setUndoToast] = useState<{ id: string; title: string } | null>(null);
+  const { track } = useEventTracker();
   const [selectedMatch, setSelectedMatch] = useState<{
     hackathonTitle: string;
     hackathonSlug: string;
@@ -46,6 +50,20 @@ export default function HomepageRecommendations({ initialData }: HomepageRecomme
     prizeAmount: number;
     deadline: string | null;
   } | null>(null);
+
+  const handleDismiss = useCallback((hackathonId: string, title: string, score: number) => {
+    setDismissedIds((prev) => [...prev, hackathonId]);
+    track(hackathonId, 'dismiss', { wasRecommended: true, score });
+    setUndoToast({ id: hackathonId, title });
+    setTimeout(() => {
+      setUndoToast((current) => (current?.id === hackathonId ? null : current));
+    }, 4000);
+  }, [track]);
+
+  const handleUndo = useCallback((hackathonId: string) => {
+    setDismissedIds((prev) => prev.filter((id) => id !== hackathonId));
+    setUndoToast(null);
+  }, []);
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const handleRefresh = useCallback(() => {
@@ -121,7 +139,8 @@ export default function HomepageRecommendations({ initialData }: HomepageRecomme
     }
   };
 
-  const recommendations = data?.recommendations || [];
+  const allRecommendations = data?.recommendations || [];
+  const recommendations = allRecommendations.filter(({ hackathon }) => !dismissedIds.includes(hackathon.id));
   const isPersonalized = data?.isPersonalized ?? false;
   const isStale = data?.isStale ?? false;
 
@@ -257,6 +276,7 @@ export default function HomepageRecommendations({ initialData }: HomepageRecomme
               key={hackathon.id}
               hackathon={hackathon}
               match={match}
+              onDismiss={() => handleDismiss(hackathon.id, hackathon.title, match.matchPercentage)}
               onWhyMatchClick={() => setSelectedMatch({
                 hackathonTitle: hackathon.title,
                 hackathonSlug: hackathon.slug || hackathon.id,
@@ -289,6 +309,19 @@ export default function HomepageRecommendations({ initialData }: HomepageRecomme
           prizeAmount={selectedMatch.prizeAmount}
           deadline={selectedMatch.deadline}
         />
+      )}
+
+      {/* UNDO DISMISS TOAST */}
+      {undoToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 border border-purple-500/50 text-slate-200 text-xs shadow-2xl shadow-purple-950/80 backdrop-blur-xl">
+          <span className="truncate max-w-[200px]">&quot;{undoToast.title}&quot; hidden.</span>
+          <button
+            onClick={() => handleUndo(undoToast.id)}
+            className="text-purple-400 hover:text-purple-300 font-bold underline cursor-pointer"
+          >
+            Undo
+          </button>
+        </div>
       )}
     </section>
   );
